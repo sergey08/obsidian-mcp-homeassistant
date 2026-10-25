@@ -28,3 +28,13 @@ The experimental helper `preflight.py` reports which expected files exist withou
 ### Next engineering work
 
 A secure first-run wizard must allow setup URI import without leaking secrets via URL parameters, command arguments, logs, or shell history; confirm target database and TLS trust; validate before enabling sync; and preserve existing installation rollback.
+
+## Read-only Home Assistant onboarding page (experimental)
+
+This development branch includes a **Home Assistant Ingress** status page. Open the add-on's **Open Web UI** action to see whether the local vault, trash, LiveSync settings, tunnel executable, key file and tunnel ID are present. Missing prerequisites appear as `Not configured`.
+
+- The page deliberately **does not accept setup URIs, passwords or API keys**.
+- It never displays private credentials, tunnel IDs, vault note contents or configuration values.
+- It is not a CouchDB connectivity test: `Ready` only means the required files/options are present.
+- Do not expose its port independently; access is intended only through Home Assistant's authenticated Ingress proxy.
+- The page remains in the feature branch until its Ingress behavior and security are tested on a clean HA OS instance.
