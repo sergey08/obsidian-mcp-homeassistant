@@ -1,0 +1,58 @@
+name: CouchDB isolated integration
+on:
+  push:
+    branches: [feature/fresh-install-onboarding]
+    paths:
+      - '.github/workflows/couchdb-integration.yml'
+      - 'obsidian_suite/couchdb_check.py'
+  pull_request:
+    paths:
+      - '.github/workflows/couchdb-integration.yml'
+      - 'obsidian_suite/couchdb_check.py'
+permissions:
+  contents: read
+jobs:
+  couchdb:
+    runs-on: ubuntu-latest
+    services:
+      couchdb:
+        image: couchdb:3
+        ports:
+          - 5984:5984
+        env:
+          COUCHDB_USER: testadmin
+          COUCHDB_PASSWORD: testpassword
+    steps:
+      - uses: actions/checkout@v4
+      - name: Wait for disposable CouchDB and create temporary database
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in {1..50}; do
+            if curl --silent --fail -u testadmin:testpassword http://127.0.0.1:5984/_up >/dev/null; then break; fi
+            sleep 2
+          done
+          curl --fail --silent -u testadmin:testpassword -X PUT http://127.0.0.1:5984/obsidian_ci_test
+          echo
+      - name: Verify read-only database health check
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, tempfile
+          from pathlib import Path
+          from importlib.util import spec_from_file_location, module_from_spec
+          p=Path('obsidian_suite/couchdb_check.py')
+          spec=spec_from_file_location('checker',p)
+          m=module_from_spec(spec)
+          spec.loader.exec_module(m)
+          with tempfile.TemporaryDirectory() as d:
+              settings=Path(d)/'settings.json'
+              settings.write_text(json.dumps({
+                  'couchDB_URI':'http://127.0.0.1:5984',
+                  'couchDB_USER':'testadmin',
+                  'couchDB_PASSWORD':'testpassword',
+                  'couchDB_DBNAME':'obsidian_ci_test'
+              }))
+              print(m.check_couchdb(settings))
+          PY
