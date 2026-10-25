@@ -1,0 +1,33 @@
+name: LiveSync CLI compatibility
+on:
+  push:
+    branches: [feature/fresh-install-onboarding]
+    paths:
+      - 'obsidian_suite/Dockerfile'
+      - 'obsidian_suite/supervisor.py'
+      - '.github/workflows/livesync-cli-smoke.yml'
+  pull_request:
+    paths:
+      - 'obsidian_suite/Dockerfile'
+      - 'obsidian_suite/supervisor.py'
+      - '.github/workflows/livesync-cli-smoke.yml'
+permissions:
+  contents: read
+jobs:
+  cli-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect bundled CLI version and argument support
+        shell: bash
+        run: |
+          set -euo pipefail
+          IMAGE=$(sed -n 's/^FROM //p' obsidian_suite/Dockerfile | head -n 1)
+          docker pull "$IMAGE"
+          docker run --rm --entrypoint /usr/local/bin/livesync-cli "$IMAGE" --help > /tmp/livesync-help.txt
+          grep -Eq 'daemon' /tmp/livesync-help.txt
+          grep -Eq -- '--vault' /tmp/livesync-help.txt
+          grep -Eq -- '--settings' /tmp/livesync-help.txt
+          grep -Eq -- '--interval' /tmp/livesync-help.txt
+          grep -Eq 'setup' /tmp/livesync-help.txt
+          echo "CLI commands and options referenced by the addon are present."
