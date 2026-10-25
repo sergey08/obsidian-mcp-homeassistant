@@ -68,8 +68,12 @@ def main():
         interval = int(options.get("livesync_interval", 60))
         if not 30 <= interval <= 3600:
             raise RuntimeError("Invalid LiveSync interval")
+        # LiveSync CLI requires database-path as its first positional argument.
+        # Keep its PouchDB database distinct from the Markdown vault.
+        db_path = BASE / "livesync-db"
+        db_path.mkdir(parents=True, exist_ok=True)
         start("livesync", [
-            "/usr/local/bin/livesync-cli", "--settings", str(settings),
+            "/usr/local/bin/livesync-cli", str(db_path), "--settings", str(settings),
             "--vault", str(vault), "--interval", str(interval), "daemon"
         ], cwd=DATA)
     if options.get("enable_tunnel", True):
