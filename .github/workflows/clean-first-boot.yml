@@ -47,6 +47,6 @@ jobs:
           # Verify the local MCP HTTP endpoint is also started.
           docker exec obsidian-fresh-ci /opt/venv/bin/python -c "import socket; s=socket.create_connection(('127.0.0.1',8765),5); s.close()"
           # A forged POST without the CSRF token must be denied and must not create settings.
-          docker exec obsidian-fresh-ci /opt/venv/bin/python -c "import urllib.request,urllib.error; req=urllib.request.Request('http://127.0.0.1:8099/',data=b'settings=%7B%7D',method='POST',headers={'Content-Type':'application/x-www-form-urlencoded'}); exec('try:\\n urllib.request.urlopen(req,timeout=5)\\n raise AssertionError(\\"Missing CSRF protection\\")\\nexcept urllib.error.HTTPError as e:\\n assert e.code == 403')"
+          docker exec obsidian-fresh-ci /opt/venv/bin/python -c "import urllib.request,urllib.error; req=urllib.request.Request('http://127.0.0.1:8099/',data=b'settings=%7B%7D',method='POST',headers={'Content-Type':'application/x-www-form-urlencoded'}); result=urllib.request.urlopen(req,timeout=5)" 2>/tmp/csrf-error.txt && exit 1 || grep -q 'HTTP Error 403' /tmp/csrf-error.txt
           test ! -f /tmp/obsidian-fresh-ci/settings/livesync-operativo.json
           echo 'Clean first boot, owned storage and onboarding UI verified'
