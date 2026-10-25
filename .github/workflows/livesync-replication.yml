@@ -60,7 +60,7 @@ jobs:
               -v /tmp/livesync-ci:/ci -e LIVESYNC_DB_PATH="$1" \
               --entrypoint /usr/local/bin/livesync-cli "$IMAGE" "$@"
           }
-          cli /ci/client-a --settings /ci/client-a/settings.json put test/note.md < /tmp/livesync-ci/client-a/note.md
+          cli /ci/client-a --settings /ci/client-a/settings.json push /ci/client-a/note.md test/note.md
           cli /ci/client-a --settings /ci/client-a/settings.json sync
           cli /ci/client-b --settings /ci/client-b/settings.json sync
           cli /ci/client-b --settings /ci/client-b/settings.json cat test/note.md > /tmp/livesync-ci/client-b/pulled.md
