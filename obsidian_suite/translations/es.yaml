@@ -1,0 +1,13 @@
+configuration:
+  tunnel_id:
+    name: Identificador del túnel de OpenAI
+    description: "Identificador de OpenAI Platform > Configuración de la organización > Túneles (empieza por tunnel_). No es una clave API."
+  enable_tunnel:
+    name: Activar túnel de ChatGPT
+    description: "Inicia el cliente del túnel para permitir el acceso privado de ChatGPT al servidor MCP. Requiere ID, ejecutable y archivo privado con clave API."
+  enable_livesync:
+    name: Activar LiveSync
+    description: "Sincroniza las notas Markdown con la base de datos CouchDB configurada. Evita ejecutar otro sincronizador sobre la misma bóveda."
+  livesync_interval:
+    name: Intervalo LiveSync (segundos)
+    description: "Tiempo entre sincronizaciones, de 30 a 3600 segundos. Valor predeterminado: 60."
