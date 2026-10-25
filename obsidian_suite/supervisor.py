@@ -60,6 +60,7 @@ def main():
         else:
             p.symlink_to(source, target_is_directory=True)
 
+    start("onboarding", ["/opt/venv/bin/python", "/opt/obsidian/onboarding.py"])
     start("mcp", ["/opt/venv/bin/python", "/opt/obsidian/server.py"])
     if options.get("enable_livesync", True):
         settings = BASE / "settings/livesync-operativo.json"
