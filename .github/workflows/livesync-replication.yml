@@ -100,3 +100,10 @@ jobs:
           cli /ci/client-a --settings /ci/private-a/settings.json mirror /ci/vault-a
           cmp /tmp/livesync-ci/vault-b/from-b.md /tmp/livesync-ci/vault-a/from-b.md
           echo "Verified B → CouchDB → A on disposable unencrypted data"
+          printf 'Updated note from disposable client A\n' > /tmp/livesync-ci/vault-a/note.md
+          cli /ci/client-a --settings /ci/private-a/settings.json mirror /ci/vault-a
+          cli /ci/client-a --settings /ci/private-a/settings.json sync
+          cli /ci/client-b --settings /ci/private-b/settings.json sync
+          cli /ci/client-b --settings /ci/private-b/settings.json mirror /ci/vault-b
+          cmp /tmp/livesync-ci/vault-a/note.md /tmp/livesync-ci/vault-b/note.md
+          echo "Verified updated content A → CouchDB → B"
