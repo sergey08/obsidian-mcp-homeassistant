@@ -48,7 +48,7 @@ jobs:
               dest=pathlib.Path('/tmp/livesync-ci')/name/'settings.json'
               dest.write_text(json.dumps(config))
           PY
-          printf 'Test note from disposable client A\n' > /tmp/livesync-ci/note.md
+          printf 'Test note from disposable client A\n' > /tmp/livesync-ci/client-a/note.md
       - name: Push from A, sync through CouchDB, pull using B
         shell: bash
         run: |
@@ -60,9 +60,9 @@ jobs:
               -v /tmp/livesync-ci:/ci \
               --entrypoint /usr/local/bin/livesync-cli "$IMAGE" "$@"
           }
-          cli /ci/client-a --settings /ci/client-a/settings.json push /ci/note.md test/note.md
+          cli /ci/client-a --settings /ci/client-a/settings.json push /ci/client-a/note.md test/note.md
           cli /ci/client-a --settings /ci/client-a/settings.json sync
           cli /ci/client-b --settings /ci/client-b/settings.json sync
-          cli /ci/client-b --settings /ci/client-b/settings.json pull test/note.md /ci/pulled.md
-          cmp /tmp/livesync-ci/note.md /tmp/livesync-ci/pulled.md
+          cli /ci/client-b --settings /ci/client-b/settings.json pull test/note.md /ci/client-b/pulled.md
+          cmp /tmp/livesync-ci/note.md /tmp/livesync-ci/client-b/pulled.md
           echo "Verified A → CouchDB → B on disposable unencrypted data"
