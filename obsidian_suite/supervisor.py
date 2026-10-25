@@ -9,8 +9,9 @@ import time
 import socket
 from pathlib import Path
 
-BASE = Path("/app_configs/obsidian_bridge")
+LEGACY_BASE = Path("/app_configs/obsidian_bridge")
 DATA = Path("/data")
+BASE = LEGACY_BASE if (LEGACY_BASE / "vault").is_dir() else DATA
 CHILDREN = {}
 STOPPING = False
 
@@ -44,8 +45,9 @@ def main():
     options = json.loads((DATA / "options.json").read_text(encoding="utf-8"))
     vault = BASE / "vault"
     trash = BASE / "mcp-trash"
-    if not vault.is_dir() or not trash.is_dir():
-        raise RuntimeError("Missing vault or private trash directory")
+    vault.mkdir(parents=True, exist_ok=True)
+    trash.mkdir(parents=True, exist_ok=True)
+    print(f"Using persistent vault at {vault}", flush=True)
     for target, source in (("/vault", vault), ("/trash", trash)):
         p = Path(target)
         if p.is_symlink():
