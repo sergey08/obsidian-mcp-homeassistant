@@ -11,9 +11,6 @@ ingress_port: 8099
 ingress_entry: /
 boot: manual
 init: false
-map:
-  - type: all_app_configs
-    read_only: true
 options:
   tunnel_id: ""
   enable_tunnel: false
