@@ -22,6 +22,16 @@ This repository provides **Obsidian MCP for Home Assistant**, one Home Assistant
 
 The add-on starts and supervises **three services in one container**: MCP, Tunnel and LiveSync. LiveSync can be disabled in configuration if a separate sync setup is used.
 
+## Recommended local Obsidian sync server for Home Assistant
+
+For the CouchDB backend, we recommend the third-party **[Obsidian Sync Server SSL by alexbelgium](https://github.com/alexbelgium/hassio-addons/tree/master/obsidian_syncserver_ssl)** add-on. It runs a self-hosted CouchDB server inside Home Assistant and can expose HTTPS on port 6984 using existing certificates. It is a **separate prerequisite**, not bundled with this MCP add-on.
+
+[![Add alexbelgium repository to Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Falexbelgium%2Fhassio-addons)
+
+Install alexbelgium's repository using the button above, then install **Obsidian Sync Server SSL**, configure a strong CouchDB password and your trusted SSL certificate/key, and configure the **Self-hosted LiveSync community plugin** in Obsidian on your computer or phone. On mobile, use a trusted HTTPS endpoint. Follow [alexbelgium's documentation](https://github.com/alexbelgium/hassio-addons/blob/master/obsidian_syncserver_ssl/README.md) for its requirements and configuration.
+
+**Important:** this server stores and replicates Obsidian note data; it does not install the Obsidian desktop/mobile application, create our local MCP vault automatically, or provision the OpenAI tunnel. The bridge still needs the configured local vault and LiveSync CLI settings. Do not run Obsidian Sync/iCloud and Self-hosted LiveSync against the same vault without reviewing the upstream warnings.
+
 ## Prerequisites — what must already exist?
 
 **This add-on is not an Obsidian desktop/mobile application and does not install or configure CouchDB for you.** It runs on Home Assistant and accesses Markdown files in a synchronized vault. You will need:
