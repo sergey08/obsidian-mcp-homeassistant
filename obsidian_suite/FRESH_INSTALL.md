@@ -38,3 +38,13 @@ This development branch includes a **Home Assistant Ingress** status page. Open 
 - It is not a CouchDB connectivity test: `Ready` only means the required files/options are present.
 - Do not expose its port independently; access is intended only through Home Assistant's authenticated Ingress proxy.
 - The page remains in the feature branch until its Ingress behavior and security are tested on a clean HA OS instance.
+
+## Experimental Ingress JSON import form
+
+The **Open Web UI** page now has a one-time form for users who already possess a trusted **LiveSync CLI settings JSON file**. Paste its exact JSON contents into the form; the private data is stored at `/data/settings/livesync-operativo.json` on clean installs (or the legacy location on migrated installs) with restrictive permissions. An existing settings file cannot be overwritten.
+
+**Important:** This is *not* an importer for the `obsidian://setuplivesync?settings=...` URI, nor does it construct valid encrypted settings from a CouchDB URL/password. The CLI URI importer remains **unwired** because it could leak the secret URI through the process command line. Never paste a setup URI into the JSON form.
+
+The JSON form checks structural validity only. It does **not** verify compatibility of fields, encryption, CouchDB permissions, TLS or safe synchronization. Do not enable LiveSync until a clean test setup has been verified. Treat settings JSON as a secret and keep backups; it is never echoed by the UI or written to logs intentionally.
+
+The form is protected by a session-lifetime anti-CSRF token and meant to be accessed exclusively via authenticated Home Assistant Ingress. Do not forward port 8099.
