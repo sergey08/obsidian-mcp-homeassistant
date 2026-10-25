@@ -64,3 +64,11 @@ To complete setup:
 This feature is still experimental, and an API key by itself is **not** sufficient for automatic tunnel access. Inbound port forwarding is unnecessary for Secure MCP Tunnel; outbound HTTPS to the OpenAI control plane is required.
 
 **Official documentation:** https://developers.openai.com/api/docs/guides/secure-mcp-tunnels
+
+## Offline tunnel binary import (experimental)
+
+The add-on image now contains `/opt/obsidian/tunnel_installer.py`, a **local-only helper** for a ZIP archive and matching SHA256SUMS.txt. It does not fetch software from arbitrary URLs and is deliberately not available as an unaudited web upload.
+
+**Security boundary:** a matching checksum proves only that the archive matches the supplied manifest. Users must independently verify that both came from the authentic OpenAI release and check available signed provenance. A user-supplied ZIP and user-supplied checksum file are not sufficient to establish trusted origin.
+
+This helper is presently library code, not a Home Assistant configuration UI action. Installation from a fresh Home Assistant Supervisor session and verification of the official release artifact format remain to be tested. Never enable the tunnel solely because the binary appears in the first-run checklist.
