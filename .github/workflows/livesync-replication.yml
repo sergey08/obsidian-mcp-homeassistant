@@ -32,7 +32,7 @@ jobs:
             sleep 2
           done
           curl -fsS -u ciadmin:cipassword -X PUT http://127.0.0.1:5984/livesync_ci
-          mkdir -p /tmp/livesync-ci/{client-a,client-b,vault-a,vault-b}
+          mkdir -p /tmp/livesync-ci/{client-a,client-b,vault-a,vault-b,private-a,private-b}
           python3 - <<'PY'
           import json,pathlib
           config={
@@ -44,8 +44,8 @@ jobs:
               'encrypt':False,
               'remoteType':'CouchDB'
           }
-          for name in ['client-a','client-b']:
-              dest=pathlib.Path('/tmp/livesync-ci')/name/'settings.json'
+          for name in ['a','b']:
+              dest=pathlib.Path('/tmp/livesync-ci')/('private-'+name)/'settings.json'
               dest.write_text(json.dumps(config))
           PY
           printf 'Test note from disposable client A\n' > /tmp/livesync-ci/vault-a/note.md
@@ -60,13 +60,13 @@ jobs:
               -v /tmp/livesync-ci:/ci -e LIVESYNC_DB_PATH="$1" \
               --entrypoint /usr/local/bin/livesync-cli "$IMAGE" "$@"
           }
-          cli /ci/client-a --settings /ci/client-a/settings.json mirror /ci/vault-a
-          cli /ci/client-a --settings /ci/client-a/settings.json sync
-          cli /ci/client-b --settings /ci/client-b/settings.json sync
-          cli /ci/client-b --settings /ci/client-b/settings.json mirror /ci/vault-b
+          cli /ci/client-a --settings /ci/private-a/settings.json mirror /ci/vault-a
+          cli /ci/client-a --settings /ci/private-a/settings.json sync
+          cli /ci/client-b --settings /ci/private-b/settings.json sync
+          cli /ci/client-b --settings /ci/private-b/settings.json mirror /ci/vault-b
           echo "Inspecting test vault structure and LiveSync local metadata (no secrets):"
           find /tmp/livesync-ci/vault-a /tmp/livesync-ci/vault-b -maxdepth 3 -type f -printf "%p\\n"
-          cli /ci/client-a --settings /ci/client-a/settings.json ls || true
-          cli /ci/client-b --settings /ci/client-b/settings.json ls || true
+          cli /ci/client-a --settings /ci/private-a/settings.json ls || true
+          cli /ci/client-b --settings /ci/private-b/settings.json ls || true
           cmp /tmp/livesync-ci/vault-a/note.md /tmp/livesync-ci/vault-b/note.md
           echo "Verified A → CouchDB → B on disposable unencrypted data"
