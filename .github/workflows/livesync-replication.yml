@@ -64,10 +64,18 @@ jobs:
               --entrypoint /usr/local/bin/livesync-cli "$IMAGE" "$@"
           }
           # Exercise the production daemon initial scan instead of relying on mirror alone.
+          set +e
           timeout --signal=TERM 15s docker run --rm --network host \
             -v /tmp/livesync-ci:/ci -e LIVESYNC_DB_PATH=/ci/client-a \
             --entrypoint /usr/local/bin/livesync-cli "$IMAGE" \
-            /ci/client-a --settings /ci/private-a/settings.json --vault /ci/vault-a daemon || test "$?" -eq 124
+            /ci/client-a --settings /ci/private-a/settings.json --vault /ci/vault-a daemon
+          rc=$?
+          set -e
+          echo "Daemon exit status: $rc"
+          if [[ "$rc" != "0" && "$rc" != "124" && "$rc" != "143" ]]; then
+            echo "::error::LiveSync daemon exited unexpectedly (status $rc)"
+            exit 1
+          fi
           echo "Verify initial mirror populated client A before attempting network replication"
           cli /ci/client-a --settings /ci/private-a/settings.json ls > /tmp/livesync-a-list.txt
           if ! grep -q "note.md" /tmp/livesync-a-list.txt; then
