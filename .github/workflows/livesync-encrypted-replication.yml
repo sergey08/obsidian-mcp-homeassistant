@@ -108,3 +108,20 @@ jobs:
           cli /encrypted-ci/client-b --settings /encrypted-ci/private-b/settings.json mirror /encrypted-ci/vault-b
           cmp /tmp/livesync-encrypted-ci/vault-a/note.md /tmp/livesync-encrypted-ci/vault-b/note.md
           echo "Verified updated content A → CouchDB → B"
+          # Inspect remote document JSON and verify no plain Markdown content is stored.
+          # These test-only credentials belong to the disposable CouchDB service.
+          curl --fail --silent -u ciadmin:cipassword \
+            'http://127.0.0.1:5984/livesync_encrypted_ci/_all_docs?include_docs=true' \
+            > /tmp/livesync-remote.json
+          python3 - <<'PY'
+          from pathlib import Path
+          remote=Path('/tmp/livesync-remote.json').read_text()
+          for phrase in (
+              'Test note from disposable client A',
+              'Test note from disposable client B',
+              'Updated note from disposable client A'
+          ):
+              if phrase in remote:
+                  raise SystemExit('ERROR: Plain Markdown content visible in remote CouchDB documents')
+          print('No test Markdown plaintext exposed in remote CouchDB JSON documents')
+          PY
