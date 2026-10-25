@@ -8,7 +8,7 @@ import html
 import json
 import os
 import secrets
-from urllib.parse import parse_qs
+from urllib.parse import parse_qs, urlsplit
 from settings_import import import_settings_json, SettingsImportError
 from couchdb_check import check_couchdb, CouchCheckError
 from tunnel_key import store_runtime_key, TunnelKeyError
@@ -19,6 +19,55 @@ DATA = Path("/data")
 LEGACY = Path("/app_configs/obsidian_bridge")
 CSRF_TOKEN = secrets.token_urlsafe(32)
 MAX_REQUEST = 180000
+I18N = {
+ "en": {
+  "heading":"Obsidian MCP for Home Assistant", "subtitle":"Initial setup — Preview",
+  "warning":"File presence alone does not confirm connectivity or the authenticity of the tunnel client.",
+  "requirement":"Requirement","status":"Status","next":"Next step","ready":"Ready","missing":"Not configured",
+  "vault":"Local Markdown vault","trash":"Recoverable trash","sync_settings":"LiveSync settings",
+  "sync_enabled":"LiveSync enabled","tunnel_binary":"Tunnel client executable",
+  "tunnel_key":"Tunnel runtime key","tunnel_id":"Tunnel ID","tunnel_enabled":"Tunnel enabled",
+  "vault_hint":"Created automatically","trash_hint":"Created automatically",
+  "sync_settings_hint":"Import settings from your Obsidian client",
+  "sync_enabled_hint":"Enable after verifying synchronization",
+  "tunnel_binary_hint":"An executable is present; its authenticity is not verified here",
+  "tunnel_key_hint":"The private key file exists; validity is not verified",
+  "tunnel_id_hint":"Enter the ID in the add-on Configuration tab",
+  "tunnel_enabled_hint":"Enable only after completing setup",
+  "sync_title":"1. LiveSync configuration","sync_desc":"Paste trusted LiveSync CLI settings JSON, not an obsidian:// setup URI. Test only with a disposable database.",
+  "sync_label":"LiveSync settings JSON","sync_button":"Import settings once",
+  "check_title":"Check CouchDB connectivity","check_desc":"Read-only connectivity and authentication check. Does not start replication.",
+  "check_button":"Check CouchDB","key_title":"2. ChatGPT tunnel key",
+  "key_desc":"Use only your own organization's tunnel runtime key. It is stored locally and never shown again.",
+  "key_label":"Runtime API key","key_button":"Store private key",
+  "docs":"Setup documentation","disclaimer":"Do not enter production credentials in this preview installation.",
+  "unknown":"Request completed"
+ },
+ "es": {
+  "heading":"Obsidian MCP para Home Assistant","subtitle":"Configuración inicial — Versión de pruebas",
+  "warning":"La presencia de archivos no confirma la conexión ni la autenticidad del cliente del túnel.",
+  "requirement":"Requisito","status":"Estado","next":"Siguiente paso","ready":"Preparado","missing":"Sin configurar",
+  "vault":"Bóveda Markdown local","trash":"Papelera recuperable","sync_settings":"Configuración de LiveSync",
+  "sync_enabled":"LiveSync activado","tunnel_binary":"Ejecutable del túnel",
+  "tunnel_key":"Clave privada del túnel","tunnel_id":"Identificador del túnel","tunnel_enabled":"Túnel activado",
+  "vault_hint":"Creada automáticamente","trash_hint":"Creada automáticamente",
+  "sync_settings_hint":"Importa la configuración desde tu cliente Obsidian",
+  "sync_enabled_hint":"Actívalo después de verificar la sincronización",
+  "tunnel_binary_hint":"El archivo existe; aquí no se verifica su autenticidad",
+  "tunnel_key_hint":"Existe el archivo privado; no se verifica su validez",
+  "tunnel_id_hint":"Introduce el identificador en la pestaña Configuración",
+  "tunnel_enabled_hint":"Actívalo solo después de completar la configuración",
+  "sync_title":"1. Configuración de LiveSync","sync_desc":"Pega el JSON de LiveSync CLI de una fuente fiable, nunca un enlace obsidian://. Prueba solo con una base de datos desechable.",
+  "sync_label":"JSON de configuración de LiveSync","sync_button":"Importar una sola vez",
+  "check_title":"Comprobar conexión CouchDB","check_desc":"Comprueba conexión y autenticación en modo de solo lectura. No inicia sincronización.",
+  "check_button":"Comprobar CouchDB","key_title":"2. Clave del túnel de ChatGPT",
+  "key_desc":"Utiliza exclusivamente una clave privada de tu propia organización. Se guarda localmente y no vuelve a mostrarse.",
+  "key_label":"Clave de ejecución","key_button":"Guardar clave privada",
+  "docs":"Documentación de instalación","disclaimer":"No introduzcas credenciales de producción en esta versión de pruebas.",
+  "unknown":"Solicitud completada"
+ }
+}
+
 
 def collect_status(data=DATA, legacy=LEGACY):
     base = legacy if (legacy / "vault").is_dir() else data
@@ -41,79 +90,75 @@ def collect_status(data=DATA, legacy=LEGACY):
         "tunnel_key": exists(base / "tunnel/api-key"),
     }
 
-def render_page(status, message=""):
-    items = [
-        ("Local Markdown vault", status["vault"], "Created on first startup"),
-        ("Recoverable trash", status["trash"], "Created on first startup"),
-        ("LiveSync settings", status["sync_settings"], "Import settings from your Obsidian client"),
-        ("LiveSync enabled", status["sync_enabled"], "Enable only after configuring synchronization"),
-        ("Tunnel client executable", status["tunnel_binary"], "File present; official provenance and connectivity must be verified separately"),
-        ("Tunnel runtime key", status["tunnel_key"], "Private key file present; does not prove validity"),
-        ("Tunnel ID set", status["tunnel_id"], "Copy the tunnel ID into Configuration"),
-        ("Tunnel enabled", status["tunnel_enabled"], "Enable after provisioning credentials"),
-    ]
-    rows = "".join(
-        "<tr><td>"+html.escape(label)+"</td><td>"+("Ready" if ready else "Not configured")+
-        "</td><td>"+html.escape(hint)+"</td></tr>"
-        for label, ready, hint in items
-    )
-    message_html = ("<p role='status'>" + html.escape(message) + "</p>") if message else ""
-    setup_form = ""
+def render_page(status, message="", lang="en"):
+    lang = lang if lang in I18N else "en"
+    tr = I18N[lang]
+    rows = []
+    for key in ("vault","trash","sync_settings","sync_enabled","tunnel_binary","tunnel_key","tunnel_id","tunnel_enabled"):
+        hint = tr.get(key + "_hint", "")
+        rows.append("<tr><td>"+html.escape(tr[key])+"</td><td><span class='state'>"+
+                    ("✓ "+tr["ready"] if status[key] else "— "+tr["missing"])+
+                    "</span></td><td>"+html.escape(hint)+"</td></tr>")
+    form = ""
+    hidden = "<input type='hidden' name='csrf' value='" + CSRF_TOKEN + "'>"
+    hidden += "<input type='hidden' name='lang' value='" + lang + "'>"
     if not status["sync_settings"] and not status["sync_enabled"]:
-        setup_form = (
-            "<h2>Import existing LiveSync CLI settings</h2>"
-            "<p>Paste the contents of a trusted, pre-exported LiveSync CLI settings JSON file. "
-            "Do not paste the Obsidian setup URI here. The JSON remains private and is never returned by this page.</p>"
-            "<form method='post' action='./'>"
-            "<input type='hidden' name='csrf' value='" + CSRF_TOKEN + "'>"
-            "<label for='settings'>LiveSync CLI settings JSON</label>"
-            "<textarea id='settings' name='settings' rows='8' required autocomplete='off' spellcheck='false' "
-            "style='display:block;width:100%;max-width:100%;margin:.5em 0;background:#282b38;color:white'></textarea>"
-            "<button type='submit'>Import settings once</button></form>"
-        )
+        form += ("<section><h2>"+tr["sync_title"]+"</h2><p>"+tr["sync_desc"]+"</p>"
+                 "<form method='post' action='./'>"+hidden+
+                 "<label for='settings'>"+tr["sync_label"]+"</label>"
+                 "<textarea name='settings' id='settings' rows='6' required autocomplete='off' spellcheck='false'></textarea>"
+                 "<button type='submit'>"+tr["sync_button"]+"</button></form></section>")
     if status["sync_settings"]:
-        setup_form += (
-            "<h2>Check CouchDB connection</h2>"
-            "<p>Read-only: checks authentication, database metadata and TLS. Never starts synchronization.</p>"
-            "<form method='post' action='./'>"
-            "<input type='hidden' name='csrf' value='" + CSRF_TOKEN + "'>"
-            "<input type='hidden' name='action' value='check_couchdb'>"
-            "<button type='submit'>Check CouchDB</button></form>"
-        )
+        form += ("<section><h2>"+tr["check_title"]+"</h2><p>"+tr["check_desc"]+"</p>"
+                 "<form method='post' action='./'>"+hidden+
+                 "<input type='hidden' name='action' value='check_couchdb'>"
+                 "<button type='submit'>"+tr["check_button"]+"</button></form></section>")
     if not status["tunnel_key"] and not status["tunnel_enabled"]:
-        setup_form += (
-            "<h2>Secure MCP tunnel runtime key</h2>"
-            "<p>Only enter an OpenAI tunnel runtime API key from your own organization. "
-            "The key is stored locally and never displayed again. Do not paste your tunnel ID here.</p>"
-            "<form method='post' action='./'>"
-            "<input type='hidden' name='csrf' value='" + CSRF_TOKEN + "'>"
-            "<input type='hidden' name='action' value='save_tunnel_key'>"
-            "<label for='tunnel_key'>Runtime API key</label>"
-            "<input id='tunnel_key' type='password' name='tunnel_key' required "
-            "autocomplete='new-password' style='display:block;width:100%;max-width:100%;margin:.5em 0'>"
-            "<button type='submit'>Store private key</button></form>"
-        )
-    return ("<!doctype html><html lang='en'><meta charset='utf-8'>"
-        "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-        "<title>Obsidian MCP setup</title>"
-        "<style>body{font:16px system-ui;max-width:960px;margin:2em auto;padding:0 1em;"
-        "background:#171925;color:#f7f8fc}a{color:#6dd8ff}table{width:100%;border-collapse:collapse}"
-        "td,th{padding:12px;border-bottom:1px solid #444;text-align:left}"
-        "h1{color:#bda3ff}.hint{color:#bac0d3}</style>"
-        "<h1>Obsidian MCP for Home Assistant</h1>"
-        "<p>Setup checklist: file presence is not proof of secure installation or working connectivity. No secrets or note contents are displayed.</p>"
-        "<table><thead><tr><th>Requirement</th><th>Status</th><th>Next step</th></tr></thead>"
-        "<tbody>"+rows+"</tbody></table>"+message_html+setup_form
-        +"<p class='hint'>CouchDB connection and end-to-end synchronization have not been verified by this checklist.</p>"
-        "<p><a href='https://github.com/sergey08/obsidian-mcp-homeassistant/blob/main/obsidian_suite/DOCS.md'"
-        " target='_blank' rel='noopener noreferrer'>Setup documentation</a></p></html>")
+        form += ("<section><h2>"+tr["key_title"]+"</h2><p>"+tr["key_desc"]+"</p>"
+                 "<form method='post' action='./'>"+hidden+
+                 "<input type='hidden' name='action' value='save_tunnel_key'>"
+                 "<label for='tunnel_key'>"+tr["key_label"]+"</label>"
+                 "<input name='tunnel_key' id='tunnel_key' type='password' required autocomplete='new-password'>"
+                 "<button type='submit'>"+tr["key_button"]+"</button></form></section>")
+    notice = "<p role='status' class='notice'>"+html.escape(message)+"</p>" if message else ""
+    css = ("body{font:15px system-ui,sans-serif;background:#151723;color:#f4f5fb;margin:0;line-height:1.5}"
+           "main{max-width:960px;margin:auto;padding:28px 20px}h1{font-size:1.8rem;margin:0;color:#c5aaff}"
+           "h2{font-size:1.15rem;margin:0 0 12px}p{color:#c5c8d7}"
+           ".top{display:flex;justify-content:space-between;align-items:start;gap:16px;flex-wrap:wrap}"
+           ".lang a{display:inline-block;padding:7px 12px;border:1px solid #56566c;border-radius:8px;"
+           "color:#eee;text-decoration:none;margin-left:4px}.lang a[aria-current=page]{background:#564481}"
+           ".scroll{overflow-x:auto}table{width:100%;border-collapse:collapse;min-width:520px}"
+           "th,td{text-align:left;padding:12px;border-bottom:1px solid #444758}th{color:#c5aaff}"
+           "section{background:#202331;border:1px solid #383b50;border-radius:12px;padding:22px;margin:22px 0}"
+           "label{display:block;margin:15px 0 6px;font-weight:600}"
+           "textarea,input{box-sizing:border-box;width:100%;padding:11px;background:#131623;color:white;"
+           "border:1px solid #696d80;border-radius:7px}"
+           "button{background:#a888ef;color:#14121d;border:0;border-radius:8px;padding:11px 19px;"
+           "font-weight:700;margin-top:14px;cursor:pointer}"
+           ".notice{border-left:3px solid #ad91f0;padding:10px;background:#252238}"
+           ".state{white-space:nowrap}.muted{font-size:13px}")
+    return ("<!doctype html><html lang='"+lang+"'><meta charset='utf-8'>"
+            "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+            "<title>Obsidian MCP Preview</title><style>"+css+"</style><main>"
+            "<div class='top'><div><h1>"+tr["heading"]+"</h1><p>"+tr["subtitle"]+"</p></div>"
+            "<nav class='lang' aria-label='Language / Idioma'>"
+            "<a href='?lang=es' "+("aria-current='page'" if lang=="es" else "")+">Español</a>"
+            "<a href='?lang=en' "+("aria-current='page'" if lang=="en" else "")+">English</a></nav></div>"
+            "<p>"+tr["warning"]+"</p><div class='scroll'><table><thead><tr>"
+            "<th>"+tr["requirement"]+"</th><th>"+tr["status"]+"</th><th>"+tr["next"]+"</th>"
+            "</tr></thead><tbody>"+"".join(rows)+"</tbody></table></div>"
+            +notice+form+"<p class='muted'>"+tr["disclaimer"]+"</p>"
+            "<p><a style='color:#bfa5ff' href='https://github.com/sergey08/obsidian-mcp-homeassistant/blob/feature/fresh-install-onboarding/obsidian_preview/TESTING.md'"
+            " target='_blank' rel='noopener noreferrer'>"+tr["docs"]+"</a></p></main></html>")
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
         if self.path.split("?", 1)[0] not in ("/", "/index.html"):
             self.send_error(404)
             return
-        content = render_page(collect_status()).encode("utf-8")
+        params = parse_qs(urlsplit(self.path).query)
+        lang = params.get("lang", ["en"])[0]
+        content = render_page(collect_status(), lang=lang).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Cache-Control", "no-store")
@@ -163,7 +208,8 @@ class Handler(BaseHTTPRequestHandler):
                 message = import_settings_json(data.get("settings", [""])[0].encode("utf-8"), base)
             except SettingsImportError as exc:
                 message = str(exc)
-        content = render_page(collect_status(), message).encode("utf-8")
+        lang = data.get("lang", ["en"])[0]
+        content = render_page(collect_status(), message, lang=lang).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Cache-Control", "no-store")
