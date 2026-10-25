@@ -29,7 +29,8 @@ class CouchTests(unittest.TestCase):
     def test_read_only_and_authorization(self):
         with tempfile.TemporaryDirectory() as d:
             settings = self.settings(d)
-            with patch.object(mod.urllib.request, "build_opener") as build_mock:\n                build_mock.return_value.open.return_value = FakeResponse()
+            with patch.object(mod.urllib.request, "build_opener") as build_mock:
+                build_mock.return_value.open.return_value = FakeResponse()
                 message = mod.check_couchdb(settings)
                 req = build_mock.return_value.open.call_args.args[0]
                 self.assertEqual(req.get_method(), "GET")
@@ -46,7 +47,8 @@ class CouchTests(unittest.TestCase):
     def test_error_does_not_echo_secret(self):
         with tempfile.TemporaryDirectory() as d:
             settings = self.settings(d)
-            with patch.object(mod.urllib.request, "build_opener") as build_mock:\n                build_mock.return_value.open.side_effect = mod.urllib.error.URLError("secret-123")
+            with patch.object(mod.urllib.request, "build_opener") as build_mock:
+                build_mock.return_value.open.side_effect = mod.urllib.error.URLError("secret-123")
                 with self.assertRaises(mod.CouchCheckError) as err:
                     mod.check_couchdb(settings)
                 self.assertNotIn("secret-123", str(err.exception))
