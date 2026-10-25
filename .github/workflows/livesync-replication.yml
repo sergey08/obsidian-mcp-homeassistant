@@ -59,8 +59,10 @@ jobs:
           IMAGE=$(sed -n 's/^FROM //p' obsidian_suite/Dockerfile | head -n 1)
           docker pull "$IMAGE"
           cli() {
+            local db_path="$1"
+            shift
             docker run --rm --network host \
-              -v /tmp/livesync-ci:/ci -e LIVESYNC_DB_PATH="$1" \
+              -v /tmp/livesync-ci:/ci -e LIVESYNC_DB_PATH="$db_path" \
               --entrypoint /usr/local/bin/livesync-cli "$IMAGE" "$@"
           }
           # Exercise the production daemon initial scan instead of relying on mirror alone.
@@ -68,7 +70,7 @@ jobs:
           timeout --signal=TERM 15s docker run --rm --network host \
             -v /tmp/livesync-ci:/ci -e LIVESYNC_DB_PATH=/ci/client-a \
             --entrypoint /usr/local/bin/livesync-cli "$IMAGE" \
-            /ci/client-a --settings /ci/private-a/settings.json --vault /ci/vault-a
+            --settings /ci/private-a/settings.json --vault /ci/vault-a
           rc=$?
           set -e
           echo "Daemon exit status: $rc"
