@@ -10,6 +10,20 @@ Obsidian MCP Suite runs three services inside **one Home Assistant app**:
 
 The app is currently built for **amd64 Home Assistant OS** and supports an existing, provisioned `obsidian_bridge` vault. It does not create a new vault, CouchDB database or OpenAI account.
 
+## Recommended Home Assistant Obsidian server
+
+For the required CouchDB sync backend, we recommend **[Obsidian Sync Server SSL](https://github.com/alexbelgium/hassio-addons/tree/master/obsidian_syncserver_ssl)** from [alexbelgium's Home Assistant add-on repository](https://github.com/alexbelgium/hassio-addons).
+
+[![Add alexbelgium repository to Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Falexbelgium%2Fhassio-addons)
+
+1. Add alexbelgium's repository using the button above.
+2. Install **Obsidian Sync Server SSL** in Home Assistant (a separate add-on).
+3. Configure CouchDB administrator credentials, a trusted TLS certificate and key from Home Assistant's `/ssl` directory, and an Obsidian database. Refer to [the add-on's official instructions](https://github.com/alexbelgium/hassio-addons/blob/master/obsidian_syncserver_ssl/README.md).
+4. Install and configure the [Self-hosted LiveSync community plugin](https://github.com/vrtmrz/obsidian-livesync) in Obsidian desktop/mobile, pointing it at the server's CouchDB endpoint. The SSL variant provides HTTPS on port 6984 when appropriately configured and reachable.
+5. Verify note synchronization among Obsidian clients, then provision this MCP add-on's **local vault and LiveSync CLI settings**. These files are not created automatically by the server add-on.
+
+This is a recommendation for an independently maintained third-party add-on, **not an embedded dependency or partnership**. Our add-on remains compatible with other correctly configured CouchDB/Self-hosted LiveSync backends. Keep your Obsidian data backed up, and do not enable competing sync systems on the same vault without understanding the risks.
+
 ## Getting an OpenAI tunnel
 
 The tunnel ID and the runtime API key are **two different things**.
