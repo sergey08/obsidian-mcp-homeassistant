@@ -12,4 +12,5 @@ COPY onboarding.py /opt/obsidian/onboarding.py
 COPY settings_import.py /opt/obsidian/settings_import.py
 COPY couchdb_check.py /opt/obsidian/couchdb_check.py
 COPY tunnel_key.py /opt/obsidian/tunnel_key.py
+COPY tunnel_installer.py /opt/obsidian/tunnel_installer.py
 ENTRYPOINT ["/opt/venv/bin/python", "/opt/obsidian/supervisor.py"]
