@@ -1,0 +1,14 @@
+name: "Obsidian LiveSync Bridge (Preview)"
+version: "0.1.0"
+slug: "obsidian_livesync"
+description: "Local Obsidian LiveSync synchronization service"
+arch:
+  - amd64
+startup: application
+boot: manual
+init: false
+map:
+  - type: all_app_configs
+    read_only: false
+options: {}
+schema: {}
