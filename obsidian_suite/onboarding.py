@@ -80,7 +80,7 @@ def render_page(status, message=""):
         "<p>Read-only first-run checklist. No passwords, API keys or note contents are displayed.</p>"
         "<table><thead><tr><th>Requirement</th><th>Status</th><th>Next step</th></tr></thead>"
         "<tbody>"+rows+"</tbody></table>"+message_html+setup_form
-        "<p class='hint'>CouchDB connection and end-to-end synchronization have not been verified by this checklist.</p>"
+        +"<p class='hint'>CouchDB connection and end-to-end synchronization have not been verified by this checklist.</p>"
         "<p><a href='https://github.com/sergey08/obsidian-mcp-homeassistant/blob/main/obsidian_suite/DOCS.md'"
         " target='_blank' rel='noopener noreferrer'>Setup documentation</a></p></html>")
 
