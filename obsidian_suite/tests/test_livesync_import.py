@@ -26,7 +26,7 @@ class ImportTests(unittest.TestCase):
     def test_fake_cli_import(self):
         with tempfile.TemporaryDirectory() as d:
             fake = Path(d) / "fake-cli"
-            fake.write_text("#!/bin/sh\nif [ \"$3\" != \"--settings\" ]; then exit 1; fi\nprintf '{\"ok\": true}' > \"$4\"\n")
+            fake.write_text("#!/bin/sh\nif [ \"$2\" != \"--settings\" ]; then exit 1; fi\nprintf '{\"ok\": true}' > \"$3\"\n")
             fake.chmod(0o700)
             # Caller supplies an isolated temporary data folder.
             out = Path(d) / "user-data"
