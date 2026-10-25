@@ -30,8 +30,8 @@ signal.signal(signal.SIGTERM, stop_all)
 signal.signal(signal.SIGINT, stop_all)
 
 
-def start(name, argv, cwd=None):
-    proc = subprocess.Popen(argv, cwd=cwd)
+def start(name, argv, cwd=None, env=None):
+    proc = subprocess.Popen(argv, cwd=cwd, env=env)
     CHILDREN[name] = proc
     print(f"Started {name} (pid={proc.pid})", flush=True)
 
@@ -75,7 +75,7 @@ def main():
         start("livesync", [
             "/usr/local/bin/livesync-cli", str(db_path), "--settings", str(settings),
             "--vault", str(vault), "--interval", str(interval), "daemon"
-        ], cwd=DATA)
+        ], cwd=DATA, env={**os.environ, "LIVESYNC_DB_PATH": str(db_path)})
     if options.get("enable_tunnel", True):
         deadline = time.monotonic() + 30
         while time.monotonic() < deadline:
