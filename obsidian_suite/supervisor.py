@@ -68,7 +68,7 @@ def main():
         interval = int(options.get("livesync_interval", 60))
         if not 30 <= interval <= 3600:
             raise RuntimeError("Invalid LiveSync interval")
-        # LiveSync CLI requires database-path as its first positional argument.
+        # Docker-based LiveSync CLI uses LIVESYNC_DB_PATH to select its database.
         # Keep its PouchDB database distinct from the Markdown vault.
         db_path = BASE / "livesync-db"
         db_path.mkdir(parents=True, exist_ok=True)
