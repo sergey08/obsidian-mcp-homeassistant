@@ -9,4 +9,5 @@ COPY server.py /opt/obsidian/server.py
 COPY supervisor.py /opt/obsidian/supervisor.py
 COPY preflight.py /opt/obsidian/preflight.py
 COPY onboarding.py /opt/obsidian/onboarding.py
+COPY settings_import.py /opt/obsidian/settings_import.py
 ENTRYPOINT ["/opt/venv/bin/python", "/opt/obsidian/supervisor.py"]
