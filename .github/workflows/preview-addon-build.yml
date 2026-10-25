@@ -37,14 +37,14 @@ jobs:
           assert 'name=\'lang\' value=\'es\'' in es
           print('Bilingual onboarding smoke test passed')
           PY
-          docker build --platform linux/amd64 --build-arg BUILD_VERSION=0.3.0-dev1 -t obsidian-preview-ci -f obsidian_preview/Dockerfile obsidian_preview
+          docker build --platform linux/amd64 --build-arg BUILD_VERSION=0.3.0-dev2 -t obsidian-preview-ci -f obsidian_preview/Dockerfile obsidian_preview
       - name: Package experimental preview for manual installation
         run: |
           mkdir -p dist/obsidian_preview
           cp -a obsidian_preview/. dist/obsidian_preview/
-          cd dist && zip -qr ../obsidian-preview-0.3.0-dev1.zip obsidian_preview
+          cd dist && zip -qr ../obsidian-preview-0.3.0-dev2.zip obsidian_preview
       - uses: actions/upload-artifact@v4
         with:
-          name: obsidian-preview-0.3.0-dev1
-          path: obsidian-preview-0.3.0-dev1.zip
+          name: obsidian-preview-0.3.0-dev2
+          path: obsidian-preview-0.3.0-dev2.zip
           retention-days: 7
