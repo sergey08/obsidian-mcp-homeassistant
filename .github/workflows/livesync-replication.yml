@@ -42,7 +42,10 @@ jobs:
               'couchDB_DBNAME':'livesync_ci',
               'isConfigured':True,
               'encrypt':False,
-              'remoteType':'CouchDB'
+              'remoteType':'CouchDB',
+              'usePluginSync':False,
+              'suspendFileWatching':False,
+              'maxMTimeForReflectEvents':0
           }
           for name in ['a','b']:
               dest=pathlib.Path('/tmp/livesync-ci')/('private-'+name)/'settings.json'
@@ -60,7 +63,13 @@ jobs:
               -v /tmp/livesync-ci:/ci -e LIVESYNC_DB_PATH="$1" \
               --entrypoint /usr/local/bin/livesync-cli "$IMAGE" "$@"
           }
-          cli /ci/client-a --settings /ci/private-a/settings.json mirror /ci/vault-a
+          cli /ci/client-a --settings /ci/private-a/settings.json --vault /ci/vault-a mirror /ci/vault-a
+          echo "Verify initial mirror populated client A before attempting network replication"
+          cli /ci/client-a --settings /ci/private-a/settings.json ls > /tmp/livesync-a-list.txt
+          if ! grep -q "note.md" /tmp/livesync-a-list.txt; then
+            echo "::error::Initial mirror did not import note.md to client A. Investigate settings/file selection before network replication."
+            exit 1
+          fi
           cli /ci/client-a --settings /ci/private-a/settings.json sync
           cli /ci/client-b --settings /ci/private-b/settings.json sync
           cli /ci/client-b --settings /ci/private-b/settings.json mirror /ci/vault-b
