@@ -1,0 +1,26 @@
+name: "Obsidian MCP PREVIEW (experimental)"
+version: "0.3.0-dev1"
+slug: "obsidian_preview"
+description: "Experimental isolated preview. Do not connect to your production LiveSync database."
+url: "https://github.com/sergey08/obsidian-mcp-homeassistant"
+arch:
+  - amd64
+startup: application
+ingress: true
+ingress_port: 8099
+ingress_entry: /
+boot: manual
+init: false
+map:
+  - type: all_app_configs
+    read_only: true
+options:
+  tunnel_id: ""
+  enable_tunnel: false
+  enable_livesync: false
+  livesync_interval: 60
+schema:
+  tunnel_id: str
+  enable_tunnel: bool
+  enable_livesync: bool
+  livesync_interval: int(30,3600)
