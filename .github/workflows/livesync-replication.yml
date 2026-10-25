@@ -32,7 +32,7 @@ jobs:
             sleep 2
           done
           curl -fsS -u ciadmin:cipassword -X PUT http://127.0.0.1:5984/livesync_ci
-          mkdir -p /tmp/livesync-ci/{client-a,client-b}
+          mkdir -p /tmp/livesync-ci/{client-a,client-b,vault-a,vault-b}
           python3 - <<'PY'
           import json,pathlib
           config={
@@ -48,7 +48,7 @@ jobs:
               dest=pathlib.Path('/tmp/livesync-ci')/name/'settings.json'
               dest.write_text(json.dumps(config))
           PY
-          printf 'Test note from disposable client A\n' > /tmp/livesync-ci/client-a/note.md
+          printf 'Test note from disposable client A\n' > /tmp/livesync-ci/vault-a/note.md
       - name: Push from A, sync through CouchDB, pull using B
         shell: bash
         run: |
@@ -60,9 +60,9 @@ jobs:
               -v /tmp/livesync-ci:/ci -e LIVESYNC_DB_PATH="$1" \
               --entrypoint /usr/local/bin/livesync-cli "$IMAGE" "$@"
           }
-          cli /ci/client-a --settings /ci/client-a/settings.json push note.md test/note.md
+          cli /ci/client-a --settings /ci/client-a/settings.json --vault /ci/vault-a mirror
           cli /ci/client-a --settings /ci/client-a/settings.json sync
           cli /ci/client-b --settings /ci/client-b/settings.json sync
-          cli /ci/client-b --settings /ci/client-b/settings.json cat test/note.md > /tmp/livesync-ci/client-b/pulled.md
+          cli /ci/client-b --settings /ci/client-b/settings.json --vault /ci/vault-b mirror
           cmp /tmp/livesync-ci/client-a/note.md /tmp/livesync-ci/client-b/pulled.md
           echo "Verified A → CouchDB → B on disposable unencrypted data"
