@@ -47,8 +47,8 @@ def render_page(status, message=""):
         ("Recoverable trash", status["trash"], "Created on first startup"),
         ("LiveSync settings", status["sync_settings"], "Import settings from your Obsidian client"),
         ("LiveSync enabled", status["sync_enabled"], "Enable only after configuring synchronization"),
-        ("Tunnel client executable", status["tunnel_binary"], "Provision an official tunnel-client binary"),
-        ("Tunnel runtime key", status["tunnel_key"], "Provision a private runtime key file"),
+        ("Tunnel client executable", status["tunnel_binary"], "File present; official provenance and connectivity must be verified separately"),
+        ("Tunnel runtime key", status["tunnel_key"], "Private key file present; does not prove validity"),
         ("Tunnel ID set", status["tunnel_id"], "Copy the tunnel ID into Configuration"),
         ("Tunnel enabled", status["tunnel_enabled"], "Enable after provisioning credentials"),
     ]
@@ -101,7 +101,7 @@ def render_page(status, message=""):
         "td,th{padding:12px;border-bottom:1px solid #444;text-align:left}"
         "h1{color:#bda3ff}.hint{color:#bac0d3}</style>"
         "<h1>Obsidian MCP for Home Assistant</h1>"
-        "<p>Read-only first-run checklist. No passwords, API keys or note contents are displayed.</p>"
+        "<p>Setup checklist: file presence is not proof of secure installation or working connectivity. No secrets or note contents are displayed.</p>"
         "<table><thead><tr><th>Requirement</th><th>Status</th><th>Next step</th></tr></thead>"
         "<tbody>"+rows+"</tbody></table>"+message_html+setup_form
         +"<p class='hint'>CouchDB connection and end-to-end synchronization have not been verified by this checklist.</p>"
