@@ -48,3 +48,19 @@ The **Open Web UI** page now has a one-time form for users who already possess a
 The JSON form checks structural validity only. It does **not** verify compatibility of fields, encryption, CouchDB permissions, TLS or safe synchronization. Do not enable LiveSync until a clean test setup has been verified. Treat settings JSON as a secret and keep backups; it is never echoed by the UI or written to logs intentionally.
 
 The form is protected by a session-lifetime anti-CSRF token and meant to be accessed exclusively via authenticated Home Assistant Ingress. Do not forward port 8099.
+
+## OpenAI Secure MCP Tunnel: new users
+
+The runtime tunnel API key can now be stored in the add-on's authenticated **Open Web UI** using a one-time form; the key is not echoed or overwritten. It is stored as a private file, separate from your Markdown vault.
+
+To complete setup:
+
+1. In your **own** OpenAI Platform organization, open [Tunnel settings](https://platform.openai.com/settings/organization/tunnels) and create/obtain a tunnel ID and restricted runtime API key. Tunnel permissions and ChatGPT workspace associations must allow that tunnel. Keep the key private.
+2. Obtain the current official `tunnel-client` binary from [openai/tunnel-client releases](https://github.com/openai/tunnel-client/releases/latest). Verify its publisher, target Linux/amd64 architecture, version and checksums/signatures against the upstream release instructions **before** provisioning. Do not copy binaries from another user's add-on or download unaudited executable assets.
+3. The add-on currently expects the executable at its own persistent `tunnel/bin/tunnel-client` location (or legacy add-on config for existing installs); automatic download and verification are **not implemented**. Do not enable the tunnel until the verified executable is installed.
+4. Open the experimental add-on's Web UI and enter your runtime key; set your tunnel ID under Home Assistant add-on Configuration.
+5. Only after all checks pass, enable the tunnel and restart the add-on. Check readiness and tool discovery from ChatGPT using an appropriate private custom MCP app.
+
+This feature is still experimental, and an API key by itself is **not** sufficient for automatic tunnel access. Inbound port forwarding is unnecessary for Secure MCP Tunnel; outbound HTTPS to the OpenAI control plane is required.
+
+**Official documentation:** https://developers.openai.com/api/docs/guides/secure-mcp-tunnels
