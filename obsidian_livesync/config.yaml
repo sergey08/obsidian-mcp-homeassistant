@@ -1,5 +1,5 @@
 name: "Obsidian LiveSync Bridge (Preview)"
-version: "0.1.0"
+version: "0.1.1"
 slug: "obsidian_livesync"
 description: "Local Obsidian LiveSync synchronization service"
 arch:
