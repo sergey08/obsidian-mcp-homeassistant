@@ -23,6 +23,20 @@ jobs:
           assert 'enable_livesync: false' in c
           assert 'enable_tunnel: false' in c
           PY
+          python3 -m py_compile obsidian_preview/onboarding.py
+          python3 - <<'PY'
+          import sys
+          sys.path.insert(0,'obsidian_preview')
+          import onboarding
+          status={k:False for k in ('vault','trash','sync_settings','sync_enabled','tunnel_binary','tunnel_key','tunnel_id','tunnel_enabled')}
+          es=onboarding.render_page(status,lang='es')
+          en=onboarding.render_page(status,lang='en')
+          assert 'Configuración inicial' in es and 'Initial setup' in en
+          assert 'type=\'password\'' in es
+          assert 'name=\'csrf\'' in es
+          assert 'name=\'lang\' value=\'es\'' in es
+          print('Bilingual onboarding smoke test passed')
+          PY
           docker build --platform linux/amd64 --build-arg BUILD_VERSION=0.3.0-dev1 -t obsidian-preview-ci -f obsidian_preview/Dockerfile obsidian_preview
       - name: Package experimental preview for manual installation
         run: |
