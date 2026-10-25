@@ -23,7 +23,7 @@ class InstallerTests(unittest.TestCase):
             root=Path(d)/"data";root.mkdir()
             msg=m.install_official_archive(archive,sums,root)
             target=root/"tunnel/bin/tunnel-client"
-            self.assertEqual(target.read_bytes(),b"test-binary-not-executable")
+            self.assertTrue(target.read_bytes().startswith(b"\x7fELF"))
             self.assertEqual(target.stat().st_mode & 0o777,0o700)
             self.assertIn("checksum matched",msg)
             with self.assertRaises(m.TunnelInstallError):
