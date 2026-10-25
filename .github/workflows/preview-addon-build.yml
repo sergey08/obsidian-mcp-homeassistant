@@ -1,0 +1,26 @@
+name: Experimental preview image build
+on:
+  push:
+    branches: [feature/fresh-install-onboarding]
+    paths:
+      - 'obsidian_preview/**'
+      - '.github/workflows/preview-addon-build.yml'
+permissions:
+  contents: read
+jobs:
+  preview-amd64:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate preview isolation and build
+        run: |
+          set -eu
+          python3 - <<'PY'
+          from pathlib import Path
+          c=Path('obsidian_preview/config.yaml').read_text()
+          assert 'slug: "obsidian_preview"' in c
+          assert 'all_app_configs' not in c
+          assert 'enable_livesync: false' in c
+          assert 'enable_tunnel: false' in c
+          PY
+          docker build --platform linux/amd64 --build-arg BUILD_VERSION=0.3.0-dev1 -t obsidian-preview-ci -f obsidian_preview/Dockerfile obsidian_preview
