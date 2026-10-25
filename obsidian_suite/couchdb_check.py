@@ -9,10 +9,15 @@ import ssl
 import urllib.error
 import urllib.parse
 import urllib.request
+import ipaddress
 from pathlib import Path
 
 class CouchCheckError(Exception):
     pass
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
 
 def check_couchdb(settings_file, timeout=5):
     try:
@@ -26,7 +31,7 @@ def check_couchdb(settings_file, timeout=5):
         url = urllib.parse.urlsplit(uri)
         if url.scheme not in ("http", "https") or not url.hostname or url.username or url.password or url.query or url.fragment:
             raise ValueError()
-        if "/" in db or db in (".", ".."):
+        if url.hostname.lower() in ("localhost.localdomain", "metadata.google.internal"):\n            raise ValueError()\n        try:\n            addr = ipaddress.ip_address(url.hostname.strip("[]"))\n            if addr.is_link_local or addr.is_multicast or addr.is_unspecified:\n                raise ValueError()\n        except ValueError:\n            # Non-IP hostnames are allowed, including local HA add-on DNS names.\n            if url.hostname.startswith(("169.254.", "fe80:")):\n                raise ValueError()\n        if "/" in db or db in (".", ".."):
             raise ValueError()
         endpoint = urllib.parse.urlunsplit((url.scheme, url.netloc, url.path.rstrip("/") + "/" + urllib.parse.quote(db, safe=""), "", ""))
     except (OSError, ValueError, KeyError, TypeError):
@@ -37,7 +42,7 @@ def check_couchdb(settings_file, timeout=5):
         "Accept": "application/json",
     })
     try:
-        with urllib.request.urlopen(req, timeout=timeout, context=ssl.create_default_context()) as resp:
+        opener = urllib.request.build_opener(urllib.request.HTTPSHandler(context=ssl.create_default_context()), NoRedirect())\n        with opener.open(req, timeout=timeout) as resp:
             if resp.status != 200:
                 raise CouchCheckError("Unexpected CouchDB response")
             raw = resp.read(16384)
@@ -47,7 +52,7 @@ def check_couchdb(settings_file, timeout=5):
     except urllib.error.HTTPError as exc:
         if exc.code in (401, 403):
             raise CouchCheckError("CouchDB authentication or authorization failed") from None
-        if exc.code == 404:
+        if exc.code in (301, 302, 303, 307, 308):\n            raise CouchCheckError("CouchDB redirect refused to protect credentials") from None\n        if exc.code == 404:
             raise CouchCheckError("CouchDB database was not found") from None
         raise CouchCheckError("CouchDB responded with an error") from None
     except (urllib.error.URLError, TimeoutError, OSError):
