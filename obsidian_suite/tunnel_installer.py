@@ -8,6 +8,7 @@ import hashlib
 import os
 import shutil
 import stat
+import struct
 import tempfile
 import zipfile
 from pathlib import Path
@@ -68,6 +69,15 @@ def install_official_archive(archive_path, checksums_path, base):
                 except BaseException:
                     staging.unlink(missing_ok=True)
                     raise
+            # ELF64 little-endian, executable/shared object, x86-64 machine.
+            with staging.open("rb") as exe:
+                header = exe.read(64)
+            if (len(header) < 64 or header[:4] != b"\\x7fELF"
+                    or header[4] != 2 or header[5] != 1
+                    or struct.unpack_from("<H", header, 16)[0] not in (2, 3)
+                    or struct.unpack_from("<H", header, 18)[0] != 62):
+                staging.unlink(missing_ok=True)
+                raise TunnelInstallError("Archive does not contain a Linux amd64 ELF executable")
             staging.chmod(0o700)
             try:
                 os.link(staging, dest)
