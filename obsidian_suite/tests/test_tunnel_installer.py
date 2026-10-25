@@ -13,7 +13,7 @@ class InstallerTests(unittest.TestCase):
     def prepare(self,d):
         archive=Path(d)/"tunnel-client-v0.0.18-linux-amd64.zip"
         with zipfile.ZipFile(archive,"w") as z:
-            z.writestr("tunnel-client",b"test-binary-not-executable")
+            z.writestr("tunnel-client",(b"\x7fELF"+bytes([2,1])+bytes(10)+b"\x02\x00\x3e\x00"+bytes(44)))
         sums=Path(d)/"SHA256SUMS.txt"
         sums.write_text(hashlib.sha256(archive.read_bytes()).hexdigest()+"  "+archive.name+"\n")
         return archive,sums
@@ -28,6 +28,15 @@ class InstallerTests(unittest.TestCase):
             self.assertIn("checksum matched",msg)
             with self.assertRaises(m.TunnelInstallError):
                 m.install_official_archive(archive,sums,root)
+    def test_reject_non_elf(self):
+        with tempfile.TemporaryDirectory() as d:
+            archive,sums=self.prepare(d)
+            with zipfile.ZipFile(archive,"w") as z:
+                z.writestr("tunnel-client",b"this is not ELF")
+            sums.write_text(hashlib.sha256(archive.read_bytes()).hexdigest()+"  "+archive.name+"\\n")
+            with self.assertRaises(m.TunnelInstallError):
+                m.install_official_archive(archive,sums,Path(d))
+
     def test_reject_modified_archive(self):
         with tempfile.TemporaryDirectory() as d:
             archive,sums=self.prepare(d)
