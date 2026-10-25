@@ -6,6 +6,9 @@ url: "https://github.com/sergey08/obsidian-mcp-homeassistant"
 arch:
   - amd64
 startup: application
+ingress: true
+ingress_port: 8099
+ingress_entry: /
 boot: manual
 init: false
 map:
