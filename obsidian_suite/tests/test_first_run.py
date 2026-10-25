@@ -24,7 +24,8 @@ class FirstRunChecks(unittest.TestCase):
         root = Path(__file__).resolve().parents[1]
         source = (root / "supervisor.py").read_text(encoding="utf-8")
         self.assertIn('db_path = BASE / "livesync-db"', source)
-        self.assertIn('"/usr/local/bin/livesync-cli", str(db_path), "--settings"', source)
+        self.assertIn('"/usr/local/bin/livesync-cli", "--settings"', source)
+        self.assertIn('"LIVESYNC_DB_PATH": str(db_path)', source)
 
     def test_no_sensitive_values_in_preflight_output(self):
         root = Path(__file__).resolve().parents[1]
