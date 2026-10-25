@@ -11,6 +11,7 @@ import secrets
 from urllib.parse import parse_qs
 from settings_import import import_settings_json, SettingsImportError
 from couchdb_check import check_couchdb, CouchCheckError
+from tunnel_key import store_runtime_key, TunnelKeyError
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -79,6 +80,19 @@ def render_page(status, message=""):
             "<input type='hidden' name='action' value='check_couchdb'>"
             "<button type='submit'>Check CouchDB</button></form>"
         )
+    if not status["tunnel_key"] and not status["tunnel_enabled"]:
+        setup_form += (
+            "<h2>Secure MCP tunnel runtime key</h2>"
+            "<p>Only enter an OpenAI tunnel runtime API key from your own organization. "
+            "The key is stored locally and never displayed again. Do not paste your tunnel ID here.</p>"
+            "<form method='post' action='./'>"
+            "<input type='hidden' name='csrf' value='" + CSRF_TOKEN + "'>"
+            "<input type='hidden' name='action' value='save_tunnel_key'>"
+            "<label for='tunnel_key'>Runtime API key</label>"
+            "<input id='tunnel_key' type='password' name='tunnel_key' required "
+            "autocomplete='new-password' style='display:block;width:100%;max-width:100%;margin:.5em 0'>"
+            "<button type='submit'>Store private key</button></form>"
+        )
     return ("<!doctype html><html lang='en'><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
         "<title>Obsidian MCP setup</title>"
@@ -126,7 +140,16 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(403)
             return
         status = collect_status()
-        if data.get("action") == ["check_couchdb"]:
+        if data.get("action") == ["save_tunnel_key"]:
+            base = LEGACY if (LEGACY / "vault").is_dir() else DATA
+            if status["tunnel_enabled"] or status["tunnel_key"]:
+                message = "Import refused: tunnel is enabled or key already exists."
+            else:
+                try:
+                    message = store_runtime_key(data.get("tunnel_key", [""])[0], base)
+                except TunnelKeyError as exc:
+                    message = str(exc)
+        elif data.get("action") == ["check_couchdb"]:
             base = LEGACY if (LEGACY / "vault").is_dir() else DATA
             try:
                 message = check_couchdb(base / "settings/livesync-operativo.json")
