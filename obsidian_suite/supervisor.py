@@ -73,7 +73,7 @@ def main():
         db_path = BASE / "livesync-db"
         db_path.mkdir(parents=True, exist_ok=True)
         start("livesync", [
-            "/usr/local/bin/livesync-cli", str(db_path), "--settings", str(settings),
+            "/usr/local/bin/livesync-cli", "--settings", str(settings),
             "--vault", str(vault), "--interval", str(interval)
         ], cwd=DATA, env={**os.environ, "LIVESYNC_DB_PATH": str(db_path)})
     if options.get("enable_tunnel", True):
