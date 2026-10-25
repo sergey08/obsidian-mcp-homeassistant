@@ -29,9 +29,9 @@ class CouchTests(unittest.TestCase):
     def test_read_only_and_authorization(self):
         with tempfile.TemporaryDirectory() as d:
             settings = self.settings(d)
-            with patch.object(mod.urllib.request, "urlopen", return_value=FakeResponse()) as open_mock:
+            with patch.object(mod.urllib.request, "build_opener") as build_mock:\n                build_mock.return_value.open.return_value = FakeResponse()
                 message = mod.check_couchdb(settings)
-                req = open_mock.call_args.args[0]
+                req = build_mock.return_value.open.call_args.args[0]
                 self.assertEqual(req.get_method(), "GET")
                 self.assertIn("/notes", req.full_url)
                 self.assertEqual(req.headers["Authorization"][:6], "Basic ")
@@ -46,10 +46,16 @@ class CouchTests(unittest.TestCase):
     def test_error_does_not_echo_secret(self):
         with tempfile.TemporaryDirectory() as d:
             settings = self.settings(d)
-            with patch.object(mod.urllib.request, "urlopen", side_effect=mod.urllib.error.URLError("secret-123")):
+            with patch.object(mod.urllib.request, "build_opener") as build_mock:\n                build_mock.return_value.open.side_effect = mod.urllib.error.URLError("secret-123")
                 with self.assertRaises(mod.CouchCheckError) as err:
                     mod.check_couchdb(settings)
                 self.assertNotIn("secret-123", str(err.exception))
+
+    def test_link_local_refused(self):
+        with tempfile.TemporaryDirectory() as d:
+            settings = self.settings(d, "http://169.254.169.254")
+            with self.assertRaises(mod.CouchCheckError):
+                mod.check_couchdb(settings)
 
 if __name__ == "__main__":
     unittest.main()
