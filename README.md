@@ -1,3 +1,5 @@
+![Obsidian MCP for Home Assistant](docs/logo.png)
+
 # Obsidian MCP for Home Assistant
 
 A Home Assistant OS add-on repository hosting a seven-tool [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server for a locally synchronized Obsidian Markdown vault.
