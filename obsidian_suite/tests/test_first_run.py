@@ -20,6 +20,12 @@ class FirstRunChecks(unittest.TestCase):
         self.assertIn("enable_livesync: false", data)
         self.assertIn("enable_tunnel: false", data)
 
+    def test_livesync_uses_separate_database_directory(self):
+        root = Path(__file__).resolve().parents[1]
+        source = (root / "supervisor.py").read_text(encoding="utf-8")
+        self.assertIn('db_path = BASE / "livesync-db"', source)
+        self.assertIn('"/usr/local/bin/livesync-cli", str(db_path), "--settings"', source)
+
     def test_no_sensitive_values_in_preflight_output(self):
         root = Path(__file__).resolve().parents[1]
         source = (root / "preflight.py").read_text(encoding="utf-8")
