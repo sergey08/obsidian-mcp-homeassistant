@@ -64,5 +64,9 @@ jobs:
           cli /ci/client-a --settings /ci/client-a/settings.json sync
           cli /ci/client-b --settings /ci/client-b/settings.json sync
           cli /ci/client-b --settings /ci/client-b/settings.json mirror /ci/vault-b
+          echo "Inspecting test vault structure and LiveSync local metadata (no secrets):"
+          find /tmp/livesync-ci/vault-a /tmp/livesync-ci/vault-b -maxdepth 3 -type f -printf "%p\\n"
+          cli /ci/client-a --settings /ci/client-a/settings.json ls || true
+          cli /ci/client-b --settings /ci/client-b/settings.json ls || true
           cmp /tmp/livesync-ci/vault-a/note.md /tmp/livesync-ci/vault-b/note.md
           echo "Verified A → CouchDB → B on disposable unencrypted data"
