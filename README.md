@@ -2,6 +2,10 @@
 
 # Obsidian MCP for Home Assistant
 
+[![Add repository to Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fsergey08%2Fobsidian-mcp-homeassistant)
+
+**One-click repository setup:** select the badge above to open your own Home Assistant and prefill this repository URL. Then confirm adding the repository and install **Obsidian MCP for Home Assistant** from the App Store.
+
 A Home Assistant app repository for connecting a locally synchronized **Obsidian Markdown vault** to ChatGPT through the **Model Context Protocol (MCP)** and **OpenAI Secure MCP Tunnel**.
 
 ## Recommended: Unified Obsidian MCP Suite
