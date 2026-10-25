@@ -4,6 +4,7 @@ import json
 import os
 import signal
 import subprocess
+from preflight import main as check_prerequisites
 import sys
 import time
 import socket
@@ -48,6 +49,7 @@ def main():
     vault.mkdir(parents=True, exist_ok=True)
     trash.mkdir(parents=True, exist_ok=True)
     print(f"Using persistent vault at {vault}", flush=True)
+    check_prerequisites()
     for target, source in (("/vault", vault), ("/trash", trash)):
         p = Path(target)
         if p.is_symlink():
