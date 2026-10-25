@@ -13,8 +13,8 @@ map:
     read_only: false
 options:
   tunnel_id: ""
-  enable_tunnel: true
-  enable_livesync: true
+  enable_tunnel: false
+  enable_livesync: false
   livesync_interval: 60
 schema:
   tunnel_id: str
