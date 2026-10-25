@@ -6,6 +6,7 @@ import signal
 import subprocess
 import sys
 import time
+import socket
 from pathlib import Path
 
 BASE = Path("/app_configs/obsidian_bridge")
@@ -67,6 +68,18 @@ def main():
             "--vault", str(vault), "--interval", str(interval), "daemon"
         ], cwd=DATA)
     if options.get("enable_tunnel", True):
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            if CHILDREN["mcp"].poll() is not None:
+                raise RuntimeError("MCP server exited before becoming ready")
+            try:
+                with socket.create_connection(("127.0.0.1", 8765), timeout=1):
+                    print("MCP TCP endpoint is ready", flush=True)
+                    break
+            except OSError:
+                time.sleep(0.5)
+        else:
+            raise RuntimeError("MCP server did not become ready within 30 seconds")
         tunnel_id = str(options.get("tunnel_id", "")).strip()
         if not tunnel_id:
             raise RuntimeError("Tunnel ID is required when tunnel is enabled")
