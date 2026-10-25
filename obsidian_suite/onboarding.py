@@ -10,6 +10,7 @@ import os
 import secrets
 from urllib.parse import parse_qs
 from settings_import import import_settings_json, SettingsImportError
+from couchdb_check import check_couchdb, CouchCheckError
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -69,6 +70,15 @@ def render_page(status, message=""):
             "style='display:block;width:100%;max-width:100%;margin:.5em 0;background:#282b38;color:white'></textarea>"
             "<button type='submit'>Import settings once</button></form>"
         )
+    if status["sync_settings"]:
+        setup_form += (
+            "<h2>Check CouchDB connection</h2>"
+            "<p>Read-only: checks authentication, database metadata and TLS. Never starts synchronization.</p>"
+            "<form method='post' action='./'>"
+            "<input type='hidden' name='csrf' value='" + CSRF_TOKEN + "'>"
+            "<input type='hidden' name='action' value='check_couchdb'>"
+            "<button type='submit'>Check CouchDB</button></form>"
+        )
     return ("<!doctype html><html lang='en'><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width,initial-scale=1'>"
         "<title>Obsidian MCP setup</title>"
@@ -116,7 +126,13 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(403)
             return
         status = collect_status()
-        if status["sync_enabled"] or status["sync_settings"]:
+        if data.get("action") == ["check_couchdb"]:
+            base = LEGACY if (LEGACY / "vault").is_dir() else DATA
+            try:
+                message = check_couchdb(base / "settings/livesync-operativo.json")
+            except CouchCheckError as exc:
+                message = str(exc)
+        elif status["sync_enabled"] or status["sync_settings"]:
             message = "Import refused: LiveSync is enabled or settings already exist."
         else:
             base = LEGACY if (LEGACY / "vault").is_dir() else DATA
