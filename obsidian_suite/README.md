@@ -1,3 +1,11 @@
+## Simple CouchDB setup (experimental branch)
+
+Install **Obsidian Sync Server SSL** from alexbelgium first and create its database/user. In this add-on's native **Configuration** tab provide the CouchDB URL, database name (usually `obsidian`), username and password. Choose whether your existing Self-hosted LiveSync vault uses encryption and enter **the same shared encryption passphrase** used by the Obsidian clients. Enable LiveSync only once the server and client settings match.
+
+A new installation creates empty Markdown `vault` and `mcp-trash` directories, and generates `settings/livesync-operativo.json` on the first LiveSync start. Existing settings and Markdown files are **not overwritten**; changing the Configuration tab later does not overwrite an existing JSON file. Do not point a fresh client at a production LiveSync database without confirming compatible settings and backups first.
+
+**ChatGPT tunnel is independent:** the existing suite still requires its own tunnel ID, private runtime key, and installed official tunnel-client executable. These cannot be inferred from CouchDB credentials. Leave the tunnel disabled until provisioned.
+
 # Obsidian MCP for Home Assistant
 
 **One Home Assistant add-on for private ChatGPT access to Obsidian notes and optional LiveSync replication.**
