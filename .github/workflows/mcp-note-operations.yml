@@ -6,12 +6,18 @@ on:
       - 'obsidian_suite/server.py'
       - 'obsidian_preview/server.py'
       - 'obsidian_suite/tests/test_note_operations.py'
+      - 'obsidian_suite/tests/test_upgrade_contract.py'
+      - 'obsidian_suite/config.yaml'
+      - 'obsidian_suite/supervisor.py'
       - '.github/workflows/mcp-note-operations.yml'
   pull_request:
     paths:
       - 'obsidian_suite/server.py'
       - 'obsidian_preview/server.py'
       - 'obsidian_suite/tests/test_note_operations.py'
+      - 'obsidian_suite/tests/test_upgrade_contract.py'
+      - 'obsidian_suite/config.yaml'
+      - 'obsidian_suite/supervisor.py'
       - '.github/workflows/mcp-note-operations.yml'
 permissions:
   contents: read
@@ -24,6 +30,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m unittest discover -s obsidian_suite/tests -p test_note_operations.py -v
+          python3 -m unittest discover -s obsidian_suite/tests -p test_upgrade_contract.py -v
           mkdir -p obsidian_preview/tests
           cp obsidian_suite/tests/test_note_operations.py obsidian_preview/tests/test_note_operations.py
           python3 -m unittest discover -s obsidian_preview/tests -p test_note_operations.py -v
