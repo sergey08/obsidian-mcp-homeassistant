@@ -47,4 +47,23 @@ jobs:
           print("First run, safe directory creation, secret permissions and migration safety OK")
           PY
       - name: Build suite on amd64
-        run: docker build --platform linux/amd64 --build-arg BUILD_VERSION=0.2.2-dev1 -f obsidian_suite/Dockerfile obsidian_suite
+        run: docker build --platform linux/amd64 --build-arg BUILD_VERSION=0.2.2-dev1 -t obsidian-simple-smoke -f obsidian_suite/Dockerfile obsidian_suite
+
+      - name: Smoke test clean first boot without existing vault or secrets
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/obsidian-simple-smoke/data /tmp/obsidian-simple-smoke/app_configs/obsidian_bridge
+          printf '{"enable_tunnel":false,"enable_livesync":false,"livesync_interval":60,"tunnel_id":""}\n' > /tmp/obsidian-simple-smoke/data/options.json
+          docker run -d --name obsidian-simple-smoke \
+            -v /tmp/obsidian-simple-smoke/data:/data \
+            -v /tmp/obsidian-simple-smoke/app_configs:/app_configs \
+            obsidian-simple-smoke
+          sleep 7
+          test "$(docker inspect -f '{{.State.Running}}' obsidian-simple-smoke)" = true
+          test -d /tmp/obsidian-simple-smoke/app_configs/obsidian_bridge/vault
+          test -d /tmp/obsidian-simple-smoke/app_configs/obsidian_bridge/mcp-trash
+          test ! -e /tmp/obsidian-simple-smoke/app_configs/obsidian_bridge/settings/livesync-operativo.json
+          docker logs obsidian-simple-smoke | grep 'Started mcp'
+          docker stop obsidian-simple-smoke
+          docker rm obsidian-simple-smoke
+          echo 'Clean first boot: safe local vault + MCP service verified'
