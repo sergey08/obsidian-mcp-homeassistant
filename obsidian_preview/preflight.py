@@ -3,6 +3,7 @@
 import json
 import os
 from pathlib import Path
+from service_config import load as load_services
 
 OWNED = Path("/data")
 LEGACY = Path("/app_configs/obsidian_bridge")
@@ -12,11 +13,7 @@ def status(label, ok, hint):
     print(f"[{'OK' if ok else 'SETUP REQUIRED'}] {label}" + ("" if ok else f" — {hint}"))
 
 def main():
-    config = OWNED / "options.json"
-    try:
-        options = json.loads(config.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        options = {}
+    options = load_services(OWNED)
     vault = BASE / "vault"
     status("Vault directory", vault.is_dir(), "Created automatically on first start")
     status("Private trash", (BASE / "mcp-trash").is_dir(), "Created automatically on first start")
@@ -35,7 +32,7 @@ def main():
         status("Tunnel key file", key.is_file() and key.stat().st_size > 0,
                "Provision a runtime key privately")
         status("Tunnel ID", bool(str(options.get("tunnel_id", "")).strip()),
-               "Set the ID in the add-on Configuration tab")
+               "Set the ID in Open Web UI")
     else:
         print("[DISABLED] OpenAI tunnel: configure a runtime key and tunnel ID first")
     print("Preflight is read-only; no remote database or vault notes were modified.")
