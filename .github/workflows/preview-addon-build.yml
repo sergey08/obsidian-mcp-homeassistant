@@ -102,6 +102,18 @@ jobs:
               try: check_couchdb_values(config)
               except CouchCheckError as exc: assert 'never-log-me' not in str(exc)
               else: raise AssertionError('Expected HTTP error')
+          from unittest.mock import patch
+          import socket,ssl
+          from couchdb_check import check_couchdb_values, CouchCheckError
+          import urllib.error
+          for reason,expected in [(socket.gaierror('dns'),'hostname'),(ConnectionRefusedError('refused'),'refused'),(TimeoutError('timeout'),'timed out'),(ssl.SSLError('TLS'),'TLS certificate')]:
+              class Failed:
+                  def open(self,req,timeout=5):
+                      raise urllib.error.URLError(reason)
+              with patch('couchdb_check.urllib.request.build_opener',return_value=Failed()):
+                  try: check_couchdb_values(config)
+                  except CouchCheckError as e: assert expected in str(e),str(e)
+                  else: raise AssertionError('Expected diagnostic')
           print('Read-only unsaved CouchDB connection checks passed')
           PY
           python3 - <<'PY'
@@ -144,14 +156,14 @@ jobs:
               assert after['couchDB_PASSWORD']=='secret' and after['passphrase']=='phrase'
           print('Safe editing existing CouchDB settings passed')
           PY
-          docker build --platform linux/amd64 --build-arg BUILD_VERSION=0.3.0-dev10 -t obsidian-preview-ci -f obsidian_preview/Dockerfile obsidian_preview
+          docker build --platform linux/amd64 --build-arg BUILD_VERSION=0.3.0-dev11 -t obsidian-preview-ci -f obsidian_preview/Dockerfile obsidian_preview
       - name: Package experimental preview for manual installation
         run: |
           mkdir -p dist/obsidian_preview
           cp -a obsidian_preview/. dist/obsidian_preview/
-          cd dist && zip -qr ../obsidian-preview-0.3.0-dev10.zip obsidian_preview
+          cd dist && zip -qr ../obsidian-preview-0.3.0-dev11.zip obsidian_preview
       - uses: actions/upload-artifact@v4
         with:
-          name: obsidian-preview-0.3.0-dev10
-          path: obsidian-preview-0.3.0-dev10.zip
+          name: obsidian-preview-0.3.0-dev11
+          path: obsidian-preview-0.3.0-dev11.zip
           retention-days: 7
