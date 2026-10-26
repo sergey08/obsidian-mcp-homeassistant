@@ -247,6 +247,14 @@ class Handler(BaseHTTPRequestHandler):
                    "couchDB_DBNAME": data.get("couch_db", [""])[0],
                    "couchDB_USER": data.get("couch_user", [""])[0],
                    "couchDB_PASSWORD": data.get("couch_password", [""])[0]}
+            if status["sync_settings"]:
+                stored = public_profile(DATA)
+                if not cfg["couchDB_PASSWORD"]:
+                    try:
+                        original = json.loads((DATA/"settings/livesync-operativo.json").read_text(encoding="utf-8"))
+                        cfg["couchDB_PASSWORD"] = original.get("couchDB_PASSWORD", "")
+                    except (OSError, ValueError):
+                        pass
             try:
                 message = check_couchdb_values(cfg)
             except CouchCheckError as exc:
@@ -287,10 +295,12 @@ class Handler(BaseHTTPRequestHandler):
                 message = str(exc)
         lang = data.get("lang", ["en"])[0]
         entered = {}
-        if data.get("action") in (["test_couch_profile"], ["save_couch_profile"]):
+        if data.get("action") in (["test_couch_profile"], ["save_couch_profile"]) and not (data.get("action") == ["save_couch_profile"] and "updated" in message.lower()):
             for key in ("couch_url", "couch_db", "couch_user", "couch_password", "couch_passphrase"):
                 entered[key] = data.get(key, [""])[0]
             entered["couch_encrypted"] = "1" if data.get("couch_encrypted") == ["1"] else "0"
+        if status["sync_settings"] and not entered:
+            entered = public_profile(DATA)
         content = render_page(collect_status(), message, lang=lang, entered=entered).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
