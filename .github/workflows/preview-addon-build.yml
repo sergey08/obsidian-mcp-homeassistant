@@ -60,14 +60,45 @@ jobs:
           except SetupError: pass
           print('Guided CouchDB profile smoke tests passed')
           PY
-          docker build --platform linux/amd64 --build-arg BUILD_VERSION=0.3.0-dev5 -t obsidian-preview-ci -f obsidian_preview/Dockerfile obsidian_preview
+          python3 - <<'PY'
+          import sys, json, urllib.error
+          from unittest.mock import patch
+          sys.path.insert(0, 'obsidian_preview')
+          from couchdb_check import check_couchdb_values, CouchCheckError
+          class Response:
+              status=200
+              def __enter__(self): return self
+              def __exit__(self,*args): pass
+              def read(self,size): return b'{"db_name":"test_notes"}'
+          class Opener:
+              def open(self,req,timeout=5):
+                  assert req.get_method() == 'GET'
+                  assert req.full_url == 'https://example.org/test_notes'
+                  assert req.get_header('Authorization').startswith('Basic ')
+                  return Response()
+          config={'couchDB_URI':'https://example.org','couchDB_DBNAME':'test_notes',
+                  'couchDB_USER':'user','couchDB_PASSWORD':'never-log-me'}
+          with patch('couchdb_check.urllib.request.build_opener',return_value=Opener()):
+              result=check_couchdb_values(config)
+              assert 'reachable' in result
+          assert 'never-log-me' not in result
+          class Failed:
+              def open(self,req,timeout=5):
+                  raise urllib.error.HTTPError(req.full_url,401,'unauthorized',{},None)
+          with patch('couchdb_check.urllib.request.build_opener',return_value=Failed()):
+              try: check_couchdb_values(config)
+              except CouchCheckError as exc: assert 'never-log-me' not in str(exc)
+              else: raise AssertionError('Expected HTTP error')
+          print('Read-only unsaved CouchDB connection checks passed')
+          PY
+          docker build --platform linux/amd64 --build-arg BUILD_VERSION=0.3.0-dev6 -t obsidian-preview-ci -f obsidian_preview/Dockerfile obsidian_preview
       - name: Package experimental preview for manual installation
         run: |
           mkdir -p dist/obsidian_preview
           cp -a obsidian_preview/. dist/obsidian_preview/
-          cd dist && zip -qr ../obsidian-preview-0.3.0-dev5.zip obsidian_preview
+          cd dist && zip -qr ../obsidian-preview-0.3.0-dev6.zip obsidian_preview
       - uses: actions/upload-artifact@v4
         with:
-          name: obsidian-preview-0.3.0-dev5
-          path: obsidian-preview-0.3.0-dev5.zip
+          name: obsidian-preview-0.3.0-dev6
+          path: obsidian-preview-0.3.0-dev6.zip
           retention-days: 7
