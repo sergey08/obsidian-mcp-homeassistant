@@ -4,11 +4,13 @@ on:
     branches: [feature/fresh-install-onboarding]
     paths:
       - 'obsidian_suite/server.py'
+      - 'obsidian_preview/server.py'
       - 'obsidian_suite/tests/test_note_operations.py'
       - '.github/workflows/mcp-note-operations.yml'
   pull_request:
     paths:
       - 'obsidian_suite/server.py'
+      - 'obsidian_preview/server.py'
       - 'obsidian_suite/tests/test_note_operations.py'
       - '.github/workflows/mcp-note-operations.yml'
 permissions:
@@ -19,4 +21,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Test Markdown operations without production vault or CouchDB
-        run: python3 -m unittest discover -s obsidian_suite/tests -p test_note_operations.py -v
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s obsidian_suite/tests -p test_note_operations.py -v
+          mkdir -p obsidian_preview/tests
+          cp obsidian_suite/tests/test_note_operations.py obsidian_preview/tests/test_note_operations.py
+          python3 -m unittest discover -s obsidian_preview/tests -p test_note_operations.py -v
