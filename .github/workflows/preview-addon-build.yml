@@ -133,7 +133,7 @@ jobs:
               onboarding.DATA=base
               page=onboarding.render_page(status,lang='es')
               assert 'Guardar cambios' in page and 'http://127.0.0.1:5984' in page
-              assert \"value='secret'\" not in page and \"value='phrase'\" not in page
+              assert "value='secret'" not in page and "value='phrase'" not in page
               update_profile(base,{"couch_url":"http://127.0.0.1:5984","couch_db":"obsidian","couch_user":"admin","couch_encrypted":"1"})
               after=json.loads((base/'settings/livesync-operativo.json').read_text())
               assert after['couchDB_PASSWORD']=='secret' and after['passphrase']=='phrase'
