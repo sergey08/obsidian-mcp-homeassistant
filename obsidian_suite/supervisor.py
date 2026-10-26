@@ -46,8 +46,13 @@ def main():
     options = json.loads((DATA / "options.json").read_text(encoding="utf-8"))
     vault = BASE / "vault"
     trash = BASE / "mcp-trash"
-    vault.mkdir(parents=True, exist_ok=True)
-    trash.mkdir(parents=True, exist_ok=True)
+    # Do not follow unexpected symbolic links when preparing persistent storage.
+    for folder in (vault, trash):
+        if folder.is_symlink():
+            raise RuntimeError(f"Managed storage path must not be a symbolic link: {folder}")
+        folder.mkdir(parents=True, exist_ok=True)
+        if not folder.is_dir():
+            raise RuntimeError(f"Managed storage path is not a directory: {folder}")
     print(f"Using persistent vault at {vault}", flush=True)
     check_prerequisites()
     for target, source in (("/vault", vault), ("/trash", trash)):
