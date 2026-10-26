@@ -1,6 +1,6 @@
 """Create a one-time LiveSync CLI CouchDB configuration with no remote writes.
 
-This is a minimal CLI profile, not an Obsidian plugin setup-URI decoder.
+This follows the documented LiveSync CLI CouchDB settings example, not an Obsidian plugin setup-URI decoder.
 Never enable synchronization automatically; test against a disposable DB first.
 """
 import ipaddress
@@ -35,9 +35,9 @@ def prepare_profile(uri, database, username, password, passphrase="", encrypted=
     cfg={
         "couchDB_URI":uri.rstrip("/"),"couchDB_DBNAME":database,
         "couchDB_USER":username,"couchDB_PASSWORD":password,
-        "remoteType":"CouchDB","isConfigured":True,
+        "isConfigured":True,"liveSync":True,
+        "syncOnSave":True,"syncOnStart":True,
         "encrypt":bool(encrypted),"usePluginSync":False,
-        "suspendFileWatching":False,"maxMTimeForReflectEvents":0,
     }
     if encrypted:
         cfg["passphrase"]=passphrase
