@@ -1,5 +1,5 @@
 name: "Obsidian MCP for Home Assistant"
-version: "0.2.1"
+version: "0.2.2-dev1"
 slug: "obsidian_suite"
 description: "One Home Assistant app for Obsidian notes, ChatGPT MCP access and LiveSync synchronization"
 url: "https://github.com/sergey08/obsidian-mcp-homeassistant"
@@ -13,8 +13,8 @@ map:
     read_only: false
 options:
   tunnel_id: ""
-  enable_tunnel: true
-  enable_livesync: true
+  enable_tunnel: false
+  enable_livesync: false
   livesync_interval: 60
   couchdb_url: ""
   couchdb_database: "obsidian"
