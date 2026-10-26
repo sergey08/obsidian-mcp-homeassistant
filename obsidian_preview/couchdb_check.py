@@ -10,6 +10,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import ipaddress
+import socket
 from pathlib import Path
 
 class CouchCheckError(Exception):
@@ -40,13 +41,13 @@ def check_couchdb_values(cfg, timeout=5):
         if url.hostname.lower() in ("localhost.localdomain", "metadata.google.internal"):
             raise ValueError()
         try:
-            addr = ipaddress.ip_address(url.hostname.strip("[]"))
-            if addr.is_link_local or addr.is_multicast or addr.is_unspecified:
-                raise ValueError()
+            addr = ipaddress.ip_address(url.hostname)
         except ValueError:
-            # Non-IP hostnames are allowed, including local HA add-on DNS names.
-            if url.hostname.startswith(("169.254.", "fe80:")):
-                raise ValueError()
+            addr = None
+        if addr is not None and (addr.is_link_local or addr.is_multicast or addr.is_unspecified):
+            raise ValueError()
+        if url.hostname.lower() in ("localhost.localdomain", "metadata.google.internal"):
+            raise ValueError()
         if "/" in db or db in (".", ".."):
             raise ValueError()
         endpoint = urllib.parse.urlunsplit((url.scheme, url.netloc, url.path.rstrip("/") + "/" + urllib.parse.quote(db, safe=""), "", ""))
@@ -74,8 +75,23 @@ def check_couchdb_values(cfg, timeout=5):
         if exc.code == 404:
             raise CouchCheckError("CouchDB database was not found") from None
         raise CouchCheckError("CouchDB responded with an error") from None
-    except (urllib.error.URLError, TimeoutError, OSError):
-        raise CouchCheckError("Cannot reach CouchDB with trusted TLS; check URL, network and certificate") from None
+    except (ssl.SSLError, ssl.CertificateError):
+        raise CouchCheckError("TLS certificate verification failed; use a trusted certificate or the internal HTTP address") from None
+    except urllib.error.URLError as exc:
+        reason = exc.reason
+        if isinstance(reason, ssl.SSLError):
+            raise CouchCheckError("TLS certificate verification failed; use a trusted certificate or the internal HTTP address") from None
+        if isinstance(reason, socket.gaierror):
+            raise CouchCheckError("Cannot resolve CouchDB hostname") from None
+        if isinstance(reason, ConnectionRefusedError):
+            raise CouchCheckError("CouchDB refused the connection; check host and port") from None
+        if isinstance(reason, (TimeoutError, socket.timeout)):
+            raise CouchCheckError("CouchDB connection timed out; check network and port") from None
+        raise CouchCheckError("Cannot connect to CouchDB; check host, port and HTTPS settings") from None
+    except (TimeoutError, socket.timeout):
+        raise CouchCheckError("CouchDB connection timed out; check network and port") from None
+    except OSError:
+        raise CouchCheckError("Cannot reach CouchDB; check network and port") from None
     except (ValueError, json.JSONDecodeError):
         raise CouchCheckError("Unexpected CouchDB response format") from None
     return "CouchDB database is reachable and credentials can read its metadata. LiveSync encryption and replication are not verified."
