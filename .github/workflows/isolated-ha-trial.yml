@@ -1,0 +1,55 @@
+name: Isolated Home Assistant trial package
+on:
+  push:
+    branches: [feature/simple-couchdb-config]
+    paths:
+      - 'obsidian_suite/**'
+      - '.github/workflows/isolated-ha-trial.yml'
+permissions:
+  contents: read
+jobs:
+  trial:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assemble fully isolated local app
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist/obsidian_simple_trial
+          cp -a obsidian_suite/. dist/obsidian_simple_trial/
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('dist/obsidian_simple_trial/config.yaml')
+          data=p.read_text()
+          data=data.replace('name: "Obsidian MCP for Home Assistant"','name: "Obsidian MCP SIMPLE TRIAL (isolated)"')
+          data=data.replace('slug: "obsidian_suite"','slug: "obsidian_simple_trial"')
+          data=data.replace('version: "0.2.2-dev1"','version: "0.2.2-dev1-trial1"')
+          data=data.replace('map:\n  - type: all_app_configs\n    read_only: false\n','')
+          p.write_text(data)
+          s=Path('dist/obsidian_simple_trial/supervisor.py')
+          s.write_text(s.read_text().replace('BASE = Path("/app_configs/obsidian_bridge")','BASE = Path("/data/obsidian_bridge")'))
+          c=p.read_text()
+          assert 'all_app_configs' not in c and 'slug: "obsidian_simple_trial"' in c
+          assert 'enable_livesync: false' in c and 'enable_tunnel: false' in c
+          assert 'BASE = Path("/data/obsidian_bridge")' in s.read_text()
+          PY
+          python3 -m py_compile dist/obsidian_simple_trial/supervisor.py dist/obsidian_simple_trial/couchdb_config.py
+          docker build --platform linux/amd64 --build-arg BUILD_VERSION=0.2.2-dev1-trial1 -t obsidian-simple-trial -f dist/obsidian_simple_trial/Dockerfile dist/obsidian_simple_trial
+          mkdir -p /tmp/obsidian-trial-data
+          printf '{"enable_tunnel":false,"enable_livesync":false,"livesync_interval":60,"tunnel_id":""}\n' > /tmp/obsidian-trial-data/options.json
+          docker run -d --name trial --mount type=bind,src=/tmp/obsidian-trial-data,dst=/data obsidian-simple-trial
+          sleep 6
+          test "$(docker inspect -f '{{.State.Running}}' trial)" = true
+          test -d /tmp/obsidian-trial-data/obsidian_bridge/vault
+          test -d /tmp/obsidian-trial-data/obsidian_bridge/mcp-trash
+          docker logs trial | grep 'Started mcp'
+          docker stop trial
+          docker rm trial
+          cd dist
+          zip -qr ../obsidian-simple-trial-0.2.2-dev1.zip obsidian_simple_trial
+      - uses: actions/upload-artifact@v4
+        with:
+          name: obsidian-simple-trial-0.2.2-dev1
+          path: obsidian-simple-trial-0.2.2-dev1.zip
+          retention-days: 7
