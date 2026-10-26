@@ -66,9 +66,21 @@ def main():
     while not STOPPING:
         options = load_services(DATA)
         if not options["enable_livesync"] and "livesync" in CHILDREN:
-            CHILDREN.pop("livesync").terminate()
+            proc = CHILDREN.pop("livesync")
+            proc.terminate()
+            try:
+                proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait()
         if not options["enable_tunnel"] and "tunnel" in CHILDREN:
-            CHILDREN.pop("tunnel").terminate()
+            proc = CHILDREN.pop("tunnel")
+            proc.terminate()
+            try:
+                proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait()
         if options.get("enable_livesync", False) and "livesync" not in CHILDREN:
             settings = BASE / "settings/livesync-operativo.json"
             required(settings)
