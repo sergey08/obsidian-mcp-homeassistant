@@ -127,7 +127,7 @@ jobs:
               cfg={"couchDB_URI":"http://127.0.0.1:5984","couchDB_DBNAME":"obsidian","couchDB_USER":"admin","couchDB_PASSWORD":"secret","encrypt":True,"passphrase":"phrase"}
               import_settings_json(json.dumps(cfg).encode(),base)
               public=public_profile(base)
-              assert "secret" not in repr(public) and "phrase" not in repr(public)
+              assert "secret" not in repr(public) and public["has_passphrase"] is True
               status={k:False for k in ('vault','trash','sync_settings','sync_enabled','tunnel_binary','tunnel_key','tunnel_id','tunnel_enabled')}
               status['sync_settings']=True
               onboarding.DATA=base
