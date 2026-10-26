@@ -1,5 +1,5 @@
 name: "Obsidian MCP PREVIEW (experimental)"
-version: "0.3.0-dev5"
+version: "0.3.0-dev6"
 slug: "obsidian_preview"
 description: "Experimental isolated preview. Do not connect to your production LiveSync database."
 url: "https://github.com/sergey08/obsidian-mcp-homeassistant"
