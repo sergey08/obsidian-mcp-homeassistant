@@ -67,3 +67,58 @@ jobs:
           docker stop obsidian-simple-smoke
           docker rm obsidian-simple-smoke
           echo 'Clean first boot: safe local vault + MCP service verified'
+
+      - name: Encrypted sync with settings generated from native Home Assistant options
+        run: |
+          set -euo pipefail
+          docker run -d --name couchdb-ci --network host -e COUCHDB_USER=ciadmin -e COUCHDB_PASSWORD=cipassword couchdb:3
+          trap 'docker rm -f couchdb-ci >/dev/null 2>&1 || true' EXIT
+          for i in {1..45}; do
+            if curl -fsS -u ciadmin:cipassword http://127.0.0.1:5984/_up >/dev/null; then break; fi
+            sleep 2
+          done
+          curl -fsS -u ciadmin:cipassword -X PUT http://127.0.0.1:5984/simple_branch_ci
+          mkdir -p /tmp/simple-ci/{a,b,vault-a,vault-b,private-a,private-b}
+          python3 - <<'PY'
+          import sys, json
+          from pathlib import Path
+          sys.path.insert(0,'obsidian_suite')
+          from couchdb_config import ensure_settings
+          opts={"couchdb_url":"http://127.0.0.1:5984","couchdb_database":"simple_branch_ci",
+                "couchdb_username":"ciadmin","couchdb_password":"cipassword",
+                "livesync_encryption":True,"livesync_passphrase":"CI-disposable-only"}
+          for name in ('a','b'):
+              base=Path('/tmp/simple-ci')/('private-'+name)
+              assert ensure_settings(opts,base)=='created'
+          PY
+          printf 'Simple branch test note from A\n' > /tmp/simple-ci/vault-a/note.md
+          cli() {
+            local d="$1"; shift
+            docker run --rm --network host -v /tmp/simple-ci:/ci \
+              -e LIVESYNC_DB_PATH="/ci/$d" --entrypoint /usr/local/bin/livesync-cli \
+              obsidian-simple-smoke "$@"
+          }
+          set +e
+          timeout --signal=TERM 15s docker run --rm --network host \
+            -v /tmp/simple-ci:/ci -e LIVESYNC_DB_PATH=/ci/a \
+            --entrypoint /usr/local/bin/livesync-cli obsidian-simple-smoke \
+            --settings /ci/private-a/settings/livesync-operativo.json --vault /ci/vault-a
+          rc=$?
+          set -e
+          test "$rc" = 0 || test "$rc" = 124 || test "$rc" = 143
+          cli a --settings /ci/private-a/settings/livesync-operativo.json ls | grep -q note.md
+          cli a --settings /ci/private-a/settings/livesync-operativo.json sync
+          cli b --settings /ci/private-b/settings/livesync-operativo.json sync
+          cli b --settings /ci/private-b/settings/livesync-operativo.json mirror /ci/vault-b
+          cmp /tmp/simple-ci/vault-a/note.md /tmp/simple-ci/vault-b/note.md
+          printf 'Reverse note from B\n' > /tmp/simple-ci/vault-b/reverse.md
+          cli b --settings /ci/private-b/settings/livesync-operativo.json mirror /ci/vault-b
+          cli b --settings /ci/private-b/settings/livesync-operativo.json sync
+          cli a --settings /ci/private-a/settings/livesync-operativo.json sync
+          cli a --settings /ci/private-a/settings/livesync-operativo.json mirror /ci/vault-a
+          cmp /tmp/simple-ci/vault-b/reverse.md /tmp/simple-ci/vault-a/reverse.md
+          curl -fsS -u ciadmin:cipassword 'http://127.0.0.1:5984/simple_branch_ci/_all_docs?include_docs=true' > /tmp/simple-ci/remote.json
+          if grep -q -E 'Simple branch test note from A|Reverse note from B' /tmp/simple-ci/remote.json; then
+            echo 'Plaintext notes exposed in CouchDB' >&2; exit 1
+          fi
+          echo 'Encrypted A-B and B-A sync using native HA options: passed'
