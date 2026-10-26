@@ -45,8 +45,13 @@ def main():
     options = json.loads((DATA / "options.json").read_text(encoding="utf-8"))
     vault = BASE / "vault"
     trash = BASE / "mcp-trash"
-    if not vault.is_dir() or not trash.is_dir():
-        raise RuntimeError("Missing vault or private trash directory")
+    # Fresh installations own these directories; existing vault contents are untouched.
+    for folder in (vault, trash):
+        if folder.is_symlink():
+            raise RuntimeError("Unexpected symbolic link for managed directory")
+        folder.mkdir(parents=True, exist_ok=True)
+        if not folder.is_dir():
+            raise RuntimeError("Managed directory is not accessible")
     for target, source in (("/vault", vault), ("/trash", trash)):
         p = Path(target)
         if p.is_symlink():
