@@ -27,6 +27,13 @@ class FirstRunChecks(unittest.TestCase):
         self.assertIn('"/usr/local/bin/livesync-cli", "--settings"', source)
         self.assertIn('"LIVESYNC_DB_PATH": str(db_path)', source)
 
+    def test_managed_vault_and_trash_reject_symlinks(self):
+        root = Path(__file__).resolve().parents[1]
+        source = (root / "supervisor.py").read_text(encoding="utf-8")
+        self.assertIn("for folder in (vault, trash):", source)
+        self.assertIn("if folder.is_symlink():", source)
+        self.assertIn("Managed storage path must not be a symbolic link", source)
+
     def test_no_sensitive_values_in_preflight_output(self):
         root = Path(__file__).resolve().parents[1]
         source = (root / "preflight.py").read_text(encoding="utf-8")
