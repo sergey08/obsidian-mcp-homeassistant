@@ -9,6 +9,7 @@ COPY server.py /opt/obsidian/server.py
 COPY supervisor.py /opt/obsidian/supervisor.py
 COPY preflight.py /opt/obsidian/preflight.py
 COPY onboarding.py /opt/obsidian/onboarding.py
+COPY service_config.py /opt/obsidian/service_config.py
 COPY settings_import.py /opt/obsidian/settings_import.py
 COPY livesync_setup.py /opt/obsidian/livesync_setup.py
 COPY couchdb_check.py /opt/obsidian/couchdb_check.py
