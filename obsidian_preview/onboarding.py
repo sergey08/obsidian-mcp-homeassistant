@@ -91,7 +91,8 @@ def collect_status(data=DATA, legacy=LEGACY):
         "tunnel_key": exists(base / "tunnel/api-key"),
     }
 
-def render_page(status, message="", lang="en"):
+def render_page(status, message="", lang="en", entered=None):
+    entered = entered or {}
     lang = lang if lang in I18N else "en"
     tr = I18N[lang]
     rows = []
@@ -118,10 +119,10 @@ def render_page(status, message="", lang="en"):
             controls += ("<label for='"+key+"'>"+tr[label]+"</label>"
                          "<input id='"+key+"' name='"+key+"' type='"+kind+"' "+
                          ("required " if key != "couch_passphrase" else "")+
-                         "autocomplete='off' maxlength='4096'>")
+                         "autocomplete='off' maxlength='4096' value='"+html.escape(str(entered.get(key, "")), quote=True)+"'>")
         form += ("<section><h2>"+tr["guided_title"]+"</h2>"
                  "<form method='post' action='./'>"+hidden+
-                 controls+"<label><input type='checkbox' name='couch_encrypted' value='1' checked "
+                 controls+"<label><input type='checkbox' name='couch_encrypted' value='1' "+("checked " if entered.get("couch_encrypted", "1") == "1" else "")+
                  "style='width:auto'> "+tr["guided_encrypted"]+"</label>"
                  "<button type='submit' name='action' value='save_couch_profile'>"+tr["guided_button"]+"</button>"
                  "<button type='submit' name='action' value='test_couch_profile' style='margin-left:10px;background:#34354a;color:white'>"+tr["guided_test"]+"</button></form></section>")
@@ -248,7 +249,12 @@ class Handler(BaseHTTPRequestHandler):
             except SettingsImportError as exc:
                 message = str(exc)
         lang = data.get("lang", ["en"])[0]
-        content = render_page(collect_status(), message, lang=lang).encode("utf-8")
+        entered = {}
+        if data.get("action") in (["test_couch_profile"], ["save_couch_profile"]):
+            for key in ("couch_url", "couch_db", "couch_user", "couch_password", "couch_passphrase"):
+                entered[key] = data.get(key, [""])[0]
+            entered["couch_encrypted"] = "1" if data.get("couch_encrypted") == ["1"] else "0"
+        content = render_page(collect_status(), message, lang=lang, entered=entered).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "text/html; charset=utf-8")
         self.send_header("Cache-Control", "no-store")
