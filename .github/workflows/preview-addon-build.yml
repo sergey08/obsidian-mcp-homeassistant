@@ -116,14 +116,37 @@ jobs:
               except ValueError: pass
           print('Service configuration storage checks passed')
           PY
-          docker build --platform linux/amd64 --build-arg BUILD_VERSION=0.3.0-dev8 -t obsidian-preview-ci -f obsidian_preview/Dockerfile obsidian_preview
+          python3 - <<'PY'
+          import tempfile,sys,json
+          from pathlib import Path
+          sys.path.insert(0,'obsidian_preview')
+          from settings_import import import_settings_json,public_profile,update_profile
+          import onboarding
+          with tempfile.TemporaryDirectory() as d:
+              base=Path(d)
+              cfg={"couchDB_URI":"http://127.0.0.1:5984","couchDB_DBNAME":"obsidian","couchDB_USER":"admin","couchDB_PASSWORD":"secret","encrypt":True,"passphrase":"phrase"}
+              import_settings_json(json.dumps(cfg).encode(),base)
+              public=public_profile(base)
+              assert "secret" not in repr(public) and "phrase" not in repr(public)
+              status={k:False for k in ('vault','trash','sync_settings','sync_enabled','tunnel_binary','tunnel_key','tunnel_id','tunnel_enabled')}
+              status['sync_settings']=True
+              onboarding.DATA=base
+              page=onboarding.render_page(status,lang='es')
+              assert 'Guardar cambios' in page and 'http://127.0.0.1:5984' in page
+              assert 'secret' not in page and 'phrase' not in page
+              update_profile(base,{"couch_url":"http://127.0.0.1:5984","couch_db":"obsidian","couch_user":"admin","couch_encrypted":"1"})
+              after=json.loads((base/'settings/livesync-operativo.json').read_text())
+              assert after['couchDB_PASSWORD']=='secret' and after['passphrase']=='phrase'
+          print('Safe editing existing CouchDB settings passed')
+          PY
+          docker build --platform linux/amd64 --build-arg BUILD_VERSION=0.3.0-dev9 -t obsidian-preview-ci -f obsidian_preview/Dockerfile obsidian_preview
       - name: Package experimental preview for manual installation
         run: |
           mkdir -p dist/obsidian_preview
           cp -a obsidian_preview/. dist/obsidian_preview/
-          cd dist && zip -qr ../obsidian-preview-0.3.0-dev8.zip obsidian_preview
+          cd dist && zip -qr ../obsidian-preview-0.3.0-dev9.zip obsidian_preview
       - uses: actions/upload-artifact@v4
         with:
-          name: obsidian-preview-0.3.0-dev8
-          path: obsidian-preview-0.3.0-dev8.zip
+          name: obsidian-preview-0.3.0-dev9
+          path: obsidian-preview-0.3.0-dev9.zip
           retention-days: 7
