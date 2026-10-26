@@ -68,9 +68,18 @@ def write_note(name: str, content: str, overwrite: bool = False) -> str:
         backup = TRASH / "versions" / datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S%f") / name
         backup.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(p, backup)
-    temp = p.with_name(p.name + ".mcp-tmp")
-    temp.write_text(content, encoding="utf-8")
-    os.replace(temp, p)
+    # Use a unique, exclusively created temporary file: fixed names can be symlinks.
+    import tempfile
+    fd, temp_name = tempfile.mkstemp(prefix=".mcp-", suffix=".tmp", dir=p.parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as out:
+            out.write(content)
+            out.flush()
+            os.fsync(out.fileno())
+        os.replace(temp_name, p)
+    finally:
+        if os.path.exists(temp_name):
+            os.unlink(temp_name)
     return f"Saved: {name}"
 
 
