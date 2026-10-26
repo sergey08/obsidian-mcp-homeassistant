@@ -1,0 +1,22 @@
+name: MCP isolated note operations
+on:
+  push:
+    branches: [feature/fresh-install-onboarding]
+    paths:
+      - 'obsidian_suite/server.py'
+      - 'obsidian_suite/tests/test_note_operations.py'
+      - '.github/workflows/mcp-note-operations.yml'
+  pull_request:
+    paths:
+      - 'obsidian_suite/server.py'
+      - 'obsidian_suite/tests/test_note_operations.py'
+      - '.github/workflows/mcp-note-operations.yml'
+permissions:
+  contents: read
+jobs:
+  isolated-note-operations:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test Markdown operations without production vault or CouchDB
+        run: python3 -m unittest discover -s obsidian_suite/tests -p test_note_operations.py -v
