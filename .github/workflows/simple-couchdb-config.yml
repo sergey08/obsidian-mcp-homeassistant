@@ -1,0 +1,44 @@
+name: Simple CouchDB configuration checks
+on:
+  push:
+    branches: [feature/simple-couchdb-config]
+    paths:
+      - 'obsidian_suite/**'
+      - '.github/workflows/simple-couchdb-config.yml'
+permissions:
+  contents: read
+jobs:
+  config:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test fresh setup and existing settings
+        run: |
+          python3 -m py_compile obsidian_suite/couchdb_config.py obsidian_suite/supervisor.py
+          python3 - <<'PY'
+          import sys, tempfile, json
+          from pathlib import Path
+          sys.path.insert(0,'obsidian_suite')
+          from couchdb_config import ensure_settings, ConfigurationError
+          options={"couchdb_url":"http://localhost:5984","couchdb_database":"obsidian",
+                   "couchdb_username":"admin","couchdb_password":"private",
+                   "livesync_encryption":True,"livesync_passphrase":"shared-secret"}
+          with tempfile.TemporaryDirectory() as directory:
+              base=Path(directory)
+              assert ensure_settings(options,base)=="created"
+              path=base/"settings/livesync-operativo.json"
+              data=json.loads(path.read_text())
+              assert data["encrypt"] and data["passphrase"]=="shared-secret"
+              assert data["couchDB_PASSWORD"]=="private"
+              assert path.stat().st_mode & 0o077==0
+              assert ensure_settings({},""+str(base))=="existing"
+              assert json.loads(path.read_text())==data
+          with tempfile.TemporaryDirectory() as directory:
+              try: ensure_settings({**options,"livesync_passphrase":""},directory)
+              except ConfigurationError: pass
+              else: raise AssertionError("Accepted missing encryption phrase")
+              assert not (Path(directory)/"settings/livesync-operativo.json").exists()
+          print("First run, secret file permissions, migration safety and validation OK")
+          PY
+      - name: Build suite on amd64
+        run: docker build --platform linux/amd64 --build-arg BUILD_VERSION=0.2.1 -f obsidian_suite/Dockerfile obsidian_suite
