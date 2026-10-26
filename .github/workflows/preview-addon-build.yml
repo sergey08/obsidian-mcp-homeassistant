@@ -20,8 +20,8 @@ jobs:
           c=Path('obsidian_preview/config.yaml').read_text()
           assert 'slug: "obsidian_preview"' in c
           assert 'all_app_configs' not in c
-          assert 'enable_livesync: false' in c
-          assert 'enable_tunnel: false' in c
+          assert 'options: {}' in c
+          assert 'schema: {}' in c
           PY
           python3 -m py_compile obsidian_preview/onboarding.py
           python3 - <<'PY'
@@ -36,6 +36,7 @@ jobs:
           assert 'name=\'csrf\'' in es
           assert 'name=\'lang\' value=\'es\'' in es
           assert 'test_couch_profile' in es and 'Probar conexión sin guardar' in es
+          assert 'save_services' in es and 'Aplicar configuración de servicios' in es
           entered={'couch_url':'http://192.168.1.33:5984','couch_db':'obsidian','couch_user':'admin',
                    'couch_password':'secret"\'<x>','couch_passphrase':'test','couch_encrypted':'0'}
           persisted=onboarding.render_page(status,'Authentication failed',lang='es',entered=entered)
@@ -98,14 +99,31 @@ jobs:
               else: raise AssertionError('Expected HTTP error')
           print('Read-only unsaved CouchDB connection checks passed')
           PY
-          docker build --platform linux/amd64 --build-arg BUILD_VERSION=0.3.0-dev7 -t obsidian-preview-ci -f obsidian_preview/Dockerfile obsidian_preview
+          python3 - <<'PY'
+          import tempfile,sys
+          from pathlib import Path
+          sys.path.insert(0,'obsidian_preview')
+          from service_config import load,save,DEFAULT
+          with tempfile.TemporaryDirectory() as d:
+              base=Path(d)
+              assert load(base)==DEFAULT
+              v=save({'enable_livesync':False,'enable_tunnel':False,'livesync_interval':120,'tunnel_id':'dev-only'},base)
+              assert load(base)==v
+              assert (base/'service-config.json').stat().st_mode & 0o077==0
+              try:
+                  save({'enable_livesync':True,'enable_tunnel':False,'livesync_interval':10,'tunnel_id':''},base)
+                  raise AssertionError('Invalid interval accepted')
+              except ValueError: pass
+          print('Service configuration storage checks passed')
+          PY
+          docker build --platform linux/amd64 --build-arg BUILD_VERSION=0.3.0-dev8 -t obsidian-preview-ci -f obsidian_preview/Dockerfile obsidian_preview
       - name: Package experimental preview for manual installation
         run: |
           mkdir -p dist/obsidian_preview
           cp -a obsidian_preview/. dist/obsidian_preview/
-          cd dist && zip -qr ../obsidian-preview-0.3.0-dev7.zip obsidian_preview
+          cd dist && zip -qr ../obsidian-preview-0.3.0-dev8.zip obsidian_preview
       - uses: actions/upload-artifact@v4
         with:
-          name: obsidian-preview-0.3.0-dev7
-          path: obsidian-preview-0.3.0-dev7.zip
+          name: obsidian-preview-0.3.0-dev8
+          path: obsidian-preview-0.3.0-dev8.zip
           retention-days: 7
