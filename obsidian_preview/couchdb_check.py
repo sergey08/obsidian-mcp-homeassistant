@@ -22,6 +22,12 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 def check_couchdb(settings_file, timeout=5):
     try:
         cfg = json.loads(Path(settings_file).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        raise CouchCheckError("Invalid or incomplete CouchDB settings") from None
+    return check_couchdb_values(cfg, timeout)
+
+def check_couchdb_values(cfg, timeout=5):
+    try:
         uri = cfg["couchDB_URI"]
         db = cfg["couchDB_DBNAME"]
         user = cfg["couchDB_USER"]
