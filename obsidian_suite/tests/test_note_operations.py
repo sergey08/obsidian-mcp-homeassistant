@@ -93,6 +93,14 @@ class NoteOperationsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.server.read_note("link.md")
 
+    def test_write_does_not_follow_predictable_temporary_symlink(self):
+        outside = Path(self.tmp.name) / "outside.md"
+        outside.write_text("protected")
+        (self.vault / "note.md.mcp-tmp").symlink_to(outside)
+        self.server.write_note("note.md", "new contents")
+        self.assertEqual(self.server.read_note("note.md"), "new contents")
+        self.assertEqual(outside.read_text(), "protected")
+
     def test_rename_refuses_existing_destination(self):
         self.server.write_note("a.md", "A")
         self.server.write_note("b.md", "B")
