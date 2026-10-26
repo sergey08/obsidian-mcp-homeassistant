@@ -248,7 +248,6 @@ class Handler(BaseHTTPRequestHandler):
                    "couchDB_USER": data.get("couch_user", [""])[0],
                    "couchDB_PASSWORD": data.get("couch_password", [""])[0]}
             if status["sync_settings"]:
-                stored = public_profile(DATA)
                 if not cfg["couchDB_PASSWORD"]:
                     try:
                         original = json.loads((DATA/"settings/livesync-operativo.json").read_text(encoding="utf-8"))
@@ -296,7 +295,7 @@ class Handler(BaseHTTPRequestHandler):
         lang = data.get("lang", ["en"])[0]
         entered = {}
         if data.get("action") in (["test_couch_profile"], ["save_couch_profile"]) and not (data.get("action") == ["save_couch_profile"] and "updated" in message.lower()):
-            for key in ("couch_url", "couch_db", "couch_user", "couch_password", "couch_passphrase"):
+            for key in ("couch_url", "couch_db", "couch_user"):
                 entered[key] = data.get(key, [""])[0]
             entered["couch_encrypted"] = "1" if data.get("couch_encrypted") == ["1"] else "0"
         if status["sync_settings"] and not entered:
