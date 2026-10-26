@@ -9,7 +9,7 @@ import json
 import os
 import secrets
 from urllib.parse import parse_qs, urlsplit
-from settings_import import import_settings_json, SettingsImportError
+from settings_import import import_settings_json, SettingsImportError, public_profile, update_profile
 from couchdb_check import check_couchdb, check_couchdb_values, CouchCheckError
 from tunnel_key import store_runtime_key, TunnelKeyError
 from livesync_setup import save_profile, SetupError
@@ -36,7 +36,7 @@ I18N = {
   "tunnel_key_hint":"Store your private runtime key; validity is not verified here",
   "tunnel_id_hint":"Enter the ID in the add-on Configuration tab",
   "tunnel_enabled_hint":"Enable only after completing setup",
-  "services_title":"3. Service controls","services_hint":"Changes apply automatically. Enable only after the corresponding setup is complete.","enable_sync":"Enable LiveSync","enable_tunnel":"Enable ChatGPT tunnel","interval_label":"Sync interval (seconds)","tunnel_id_label":"Tunnel ID","services_save":"Apply service settings","services_done":"Service configuration updated.","services_error":"Cannot enable a service before its files and credentials are configured.","guided_title":"Configure CouchDB manually","guided_url":"Server URL","guided_db":"Database name","guided_user":"Username","guided_password":"Password","guided_passphrase":"Shared encryption passphrase (optional for unencrypted setup)","guided_encrypted":"Enable encryption","guided_button":"Save CouchDB configuration","guided_test":"Test connection without saving","sync_title":"1. LiveSync configuration","sync_desc":"Paste trusted LiveSync CLI settings JSON, not an obsidian:// setup URI. Test only with a disposable database.",
+  "services_title":"3. Service controls","services_hint":"Changes apply automatically. Enable only after the corresponding setup is complete.","enable_sync":"Enable LiveSync","enable_tunnel":"Enable ChatGPT tunnel","interval_label":"Sync interval (seconds)","tunnel_id_label":"Tunnel ID","services_save":"Apply service settings","services_done":"Service configuration updated.","services_error":"Cannot enable a service before its files and credentials are configured.","edit_note":"Leave passwords blank to keep the existing values. Secrets are never displayed.","edit_button":"Save changes","guided_title":"Configure CouchDB manually","guided_url":"Server URL","guided_db":"Database name","guided_user":"Username","guided_password":"Password","guided_passphrase":"Shared encryption passphrase (optional for unencrypted setup)","guided_encrypted":"Enable encryption","guided_button":"Save CouchDB configuration","guided_test":"Test connection without saving","sync_title":"1. LiveSync configuration","sync_desc":"Paste trusted LiveSync CLI settings JSON, not an obsidian:// setup URI. Test only with a disposable database.",
   "sync_label":"LiveSync settings JSON","sync_button":"Import settings once",
   "check_title":"Check CouchDB connectivity","check_desc":"Read-only connectivity and authentication check. Does not start replication.",
   "check_button":"Check CouchDB","key_title":"2. ChatGPT tunnel key",
@@ -59,7 +59,7 @@ I18N = {
   "tunnel_key_hint":"Guarda tu clave privada; aquí no se comprueba su validez",
   "tunnel_id_hint":"Introduce el identificador en la pestaña Configuración",
   "tunnel_enabled_hint":"Actívalo solo después de completar la configuración",
-  "services_title":"3. Control de servicios","services_hint":"Los cambios se aplican automáticamente. Activa los servicios solamente cuando termines su configuración.","enable_sync":"Activar LiveSync","enable_tunnel":"Activar túnel de ChatGPT","interval_label":"Intervalo de sincronización (segundos)","tunnel_id_label":"Identificador del túnel","services_save":"Aplicar configuración de servicios","services_done":"Configuración de servicios actualizada.","services_error":"No se puede activar un servicio sin sus archivos y credenciales.","guided_title":"Configurar CouchDB manualmente","guided_url":"URL del servidor","guided_db":"Nombre de base de datos","guided_user":"Usuario","guided_password":"Contraseña","guided_passphrase":"Frase de cifrado compartida (opcional sin cifrado)","guided_encrypted":"Activar cifrado","guided_button":"Guardar configuración de CouchDB","guided_test":"Probar conexión sin guardar","sync_title":"1. Configuración de LiveSync","sync_desc":"Pega el JSON de LiveSync CLI de una fuente fiable, nunca un enlace obsidian://. Prueba solo con una base de datos desechable.",
+  "services_title":"3. Control de servicios","services_hint":"Los cambios se aplican automáticamente. Activa los servicios solamente cuando termines su configuración.","enable_sync":"Activar LiveSync","enable_tunnel":"Activar túnel de ChatGPT","interval_label":"Intervalo de sincronización (segundos)","tunnel_id_label":"Identificador del túnel","services_save":"Aplicar configuración de servicios","services_done":"Configuración de servicios actualizada.","services_error":"No se puede activar un servicio sin sus archivos y credenciales.","edit_note":"Deja las contraseñas en blanco para conservar las actuales. Nunca se muestran los secretos.","edit_button":"Guardar cambios","guided_title":"Configurar CouchDB manualmente","guided_url":"URL del servidor","guided_db":"Nombre de base de datos","guided_user":"Usuario","guided_password":"Contraseña","guided_passphrase":"Frase de cifrado compartida (opcional sin cifrado)","guided_encrypted":"Activar cifrado","guided_button":"Guardar configuración de CouchDB","guided_test":"Probar conexión sin guardar","sync_title":"1. Configuración de LiveSync","sync_desc":"Pega el JSON de LiveSync CLI de una fuente fiable, nunca un enlace obsidian://. Prueba solo con una base de datos desechable.",
   "sync_label":"JSON de configuración de LiveSync","sync_button":"Importar una sola vez",
   "check_title":"Comprobar conexión CouchDB","check_desc":"Comprueba conexión y autenticación en modo de solo lectura. No inicia sincronización.",
   "check_button":"Comprobar CouchDB","key_title":"2. Clave del túnel de ChatGPT",
@@ -108,7 +108,10 @@ def render_page(status, message="", lang="en", entered=None):
                  "<label for='settings'>"+tr["sync_label"]+"</label>"
                  "<textarea name='settings' id='settings' rows='6' required autocomplete='off' spellcheck='false'></textarea>"
                  "<button type='submit'>"+tr["sync_button"]+"</button></form></section>")
-    if not status["sync_settings"] and not status["sync_enabled"]:
+    if not status["sync_enabled"]:
+        existing = public_profile(DATA) if status["sync_settings"] else {}
+        if not entered:
+            entered = existing
         fields = (("couch_url","guided_url","url"),("couch_db","guided_db","text"),
                   ("couch_user","guided_user","text"),("couch_password","guided_password","password"),
                   ("couch_passphrase","guided_passphrase","password"))
@@ -116,13 +119,14 @@ def render_page(status, message="", lang="en", entered=None):
         for key,label,kind in fields:
             controls += ("<label for='"+key+"'>"+tr[label]+"</label>"
                          "<input id='"+key+"' name='"+key+"' type='"+kind+"' "+
-                         ("required " if key != "couch_passphrase" else "")+
+                         ("required " if key in ("couch_url","couch_db","couch_user") or (key=="couch_password" and not status["sync_settings"]) else "")+
                          "autocomplete='off' maxlength='4096' value='"+html.escape(str(entered.get(key, "")), quote=True)+"'>")
         form += ("<section><h2>"+tr["guided_title"]+"</h2>"
                  "<form method='post' action='./'>"+hidden+
+                 ("<p>"+tr["edit_note"]+"</p>" if status["sync_settings"] else "")+
                  controls+"<label><input type='checkbox' name='couch_encrypted' value='1' "+("checked " if entered.get("couch_encrypted", "1") == "1" else "")+
                  "style='width:auto'> "+tr["guided_encrypted"]+"</label>"
-                 "<button type='submit' name='action' value='save_couch_profile'>"+tr["guided_button"]+"</button>"
+                 "<button type='submit' name='action' value='save_couch_profile'>"+(tr["edit_button"] if status["sync_settings"] else tr["guided_button"])+"</button>"
                  "<button type='submit' name='action' value='test_couch_profile' style='margin-left:10px;background:#34354a;color:white'>"+tr["guided_test"]+"</button></form></section>")
     if status["sync_settings"]:
         form += ("<section><h2>"+tr["check_title"]+"</h2><p>"+tr["check_desc"]+"</p>"
@@ -246,6 +250,13 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 message = check_couchdb_values(cfg)
             except CouchCheckError as exc:
+                message = str(exc)
+        elif data.get("action") == ["save_couch_profile"] and status["sync_settings"] and not status["sync_enabled"]:
+            base = LEGACY if (LEGACY / "vault").is_dir() else DATA
+            try:
+                message = update_profile(base, {key: data.get(key, [""])[0] for key in
+                    ("couch_url","couch_db","couch_user","couch_password","couch_passphrase","couch_encrypted")})
+            except SettingsImportError as exc:
                 message = str(exc)
         elif data.get("action") == ["save_couch_profile"]:
             base = LEGACY if (LEGACY / "vault").is_dir() else DATA
