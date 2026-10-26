@@ -1,0 +1,109 @@
+name: LiveSync isolated two-client replication
+on:
+  push:
+    branches: [feature/fresh-install-onboarding]
+    paths:
+      - '.github/workflows/livesync-replication.yml'
+      - 'obsidian_suite/Dockerfile'
+  pull_request:
+    paths:
+      - '.github/workflows/livesync-replication.yml'
+      - 'obsidian_suite/Dockerfile'
+permissions:
+  contents: read
+jobs:
+  replication:
+    runs-on: ubuntu-latest
+    services:
+      couchdb:
+        image: couchdb:3
+        ports: ['5984:5984']
+        env:
+          COUCHDB_USER: ciadmin
+          COUCHDB_PASSWORD: cipassword
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create disposable database and isolated clients
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in {1..60}; do
+            if curl -fsS -u ciadmin:cipassword http://127.0.0.1:5984/_up >/dev/null; then break; fi
+            sleep 2
+          done
+          curl -fsS -u ciadmin:cipassword -X PUT http://127.0.0.1:5984/livesync_ci
+          mkdir -p /tmp/livesync-ci/{client-a,client-b,vault-a,vault-b,private-a,private-b}
+          python3 - <<'PY'
+          import json,pathlib
+          config={
+              'couchDB_URI':'http://127.0.0.1:5984',
+              'couchDB_USER':'ciadmin',
+              'couchDB_PASSWORD':'cipassword',
+              'couchDB_DBNAME':'livesync_ci',
+              'isConfigured':True,
+              'encrypt':False,
+              'remoteType':'CouchDB',
+              'usePluginSync':False,
+              'suspendFileWatching':False,
+              'maxMTimeForReflectEvents':0
+          }
+          for name in ['a','b']:
+              dest=pathlib.Path('/tmp/livesync-ci')/('private-'+name)/'settings.json'
+              dest.write_text(json.dumps(config))
+          PY
+          printf 'Test note from disposable client A\n' > /tmp/livesync-ci/vault-a/note.md
+      - name: Push from A, sync through CouchDB, pull using B
+        shell: bash
+        run: |
+          set -euo pipefail
+          IMAGE=$(sed -n 's/^FROM //p' obsidian_suite/Dockerfile | head -n 1)
+          docker pull "$IMAGE"
+          cli() {
+            local db_path="$1"
+            shift
+            docker run --rm --network host \
+              -v /tmp/livesync-ci:/ci -e LIVESYNC_DB_PATH="$db_path" \
+              --entrypoint /usr/local/bin/livesync-cli "$IMAGE" "$@"
+          }
+          # Exercise the production daemon initial scan instead of relying on mirror alone.
+          set +e
+          timeout --signal=TERM 15s docker run --rm --network host \
+            -v /tmp/livesync-ci:/ci -e LIVESYNC_DB_PATH=/ci/client-a \
+            --entrypoint /usr/local/bin/livesync-cli "$IMAGE" \
+            --settings /ci/private-a/settings.json --vault /ci/vault-a
+          rc=$?
+          set -e
+          echo "Daemon exit status: $rc"
+          if [[ "$rc" != "0" && "$rc" != "124" && "$rc" != "143" ]]; then
+            echo "::error::LiveSync daemon exited unexpectedly (status $rc)"
+            exit 1
+          fi
+          echo "Verify initial mirror populated client A before attempting network replication"
+          cli /ci/client-a --settings /ci/private-a/settings.json ls > /tmp/livesync-a-list.txt
+          if ! grep -q "note.md" /tmp/livesync-a-list.txt; then
+            echo "::error::Initial mirror did not import note.md to client A. Investigate settings/file selection before network replication."
+            exit 1
+          fi
+          cli /ci/client-a --settings /ci/private-a/settings.json sync
+          cli /ci/client-b --settings /ci/private-b/settings.json sync
+          cli /ci/client-b --settings /ci/private-b/settings.json mirror /ci/vault-b
+          echo "Inspecting test vault structure and LiveSync local metadata (no secrets):"
+          find /tmp/livesync-ci/vault-a /tmp/livesync-ci/vault-b -maxdepth 3 -type f -printf "%p\\n"
+          cli /ci/client-a --settings /ci/private-a/settings.json ls || true
+          cli /ci/client-b --settings /ci/private-b/settings.json ls || true
+          cmp /tmp/livesync-ci/vault-a/note.md /tmp/livesync-ci/vault-b/note.md
+          echo "Verified A → CouchDB → B on disposable unencrypted data"
+          printf 'Test note from disposable client B\n' > /tmp/livesync-ci/vault-b/from-b.md
+          cli /ci/client-b --settings /ci/private-b/settings.json mirror /ci/vault-b
+          cli /ci/client-b --settings /ci/private-b/settings.json sync
+          cli /ci/client-a --settings /ci/private-a/settings.json sync
+          cli /ci/client-a --settings /ci/private-a/settings.json mirror /ci/vault-a
+          cmp /tmp/livesync-ci/vault-b/from-b.md /tmp/livesync-ci/vault-a/from-b.md
+          echo "Verified B → CouchDB → A on disposable unencrypted data"
+          printf 'Updated note from disposable client A\n' > /tmp/livesync-ci/vault-a/note.md
+          cli /ci/client-a --settings /ci/private-a/settings.json mirror /ci/vault-a
+          cli /ci/client-a --settings /ci/private-a/settings.json sync
+          cli /ci/client-b --settings /ci/private-b/settings.json sync
+          cli /ci/client-b --settings /ci/private-b/settings.json mirror /ci/vault-b
+          cmp /tmp/livesync-ci/vault-a/note.md /tmp/livesync-ci/vault-b/note.md
+          echo "Verified updated content A → CouchDB → B"

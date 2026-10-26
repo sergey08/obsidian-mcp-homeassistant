@@ -4,13 +4,15 @@ import json
 import os
 import signal
 import subprocess
+from preflight import main as check_prerequisites
 import sys
 import time
 import socket
 from pathlib import Path
 
-BASE = Path("/app_configs/obsidian_bridge")
+LEGACY_BASE = Path("/app_configs/obsidian_bridge")
 DATA = Path("/data")
+BASE = LEGACY_BASE if (LEGACY_BASE / "vault").is_dir() else DATA
 CHILDREN = {}
 STOPPING = False
 
@@ -28,8 +30,8 @@ signal.signal(signal.SIGTERM, stop_all)
 signal.signal(signal.SIGINT, stop_all)
 
 
-def start(name, argv, cwd=None):
-    proc = subprocess.Popen(argv, cwd=cwd)
+def start(name, argv, cwd=None, env=None):
+    proc = subprocess.Popen(argv, cwd=cwd, env=env)
     CHILDREN[name] = proc
     print(f"Started {name} (pid={proc.pid})", flush=True)
 
@@ -44,8 +46,15 @@ def main():
     options = json.loads((DATA / "options.json").read_text(encoding="utf-8"))
     vault = BASE / "vault"
     trash = BASE / "mcp-trash"
-    if not vault.is_dir() or not trash.is_dir():
-        raise RuntimeError("Missing vault or private trash directory")
+    # Do not follow unexpected symbolic links when preparing persistent storage.
+    for folder in (vault, trash):
+        if folder.is_symlink():
+            raise RuntimeError(f"Managed storage path must not be a symbolic link: {folder}")
+        folder.mkdir(parents=True, exist_ok=True)
+        if not folder.is_dir():
+            raise RuntimeError(f"Managed storage path is not a directory: {folder}")
+    print(f"Using persistent vault at {vault}", flush=True)
+    check_prerequisites()
     for target, source in (("/vault", vault), ("/trash", trash)):
         p = Path(target)
         if p.is_symlink():
@@ -56,6 +65,7 @@ def main():
         else:
             p.symlink_to(source, target_is_directory=True)
 
+    start("onboarding", ["/opt/venv/bin/python", "/opt/obsidian/onboarding.py"])
     start("mcp", ["/opt/venv/bin/python", "/opt/obsidian/server.py"])
     if options.get("enable_livesync", True):
         settings = BASE / "settings/livesync-operativo.json"
@@ -63,10 +73,14 @@ def main():
         interval = int(options.get("livesync_interval", 60))
         if not 30 <= interval <= 3600:
             raise RuntimeError("Invalid LiveSync interval")
+        # Docker-based LiveSync CLI uses LIVESYNC_DB_PATH to select its database.
+        # Keep its PouchDB database distinct from the Markdown vault.
+        db_path = BASE / "livesync-db"
+        db_path.mkdir(parents=True, exist_ok=True)
         start("livesync", [
             "/usr/local/bin/livesync-cli", "--settings", str(settings),
-            "--vault", str(vault), "--interval", str(interval), "daemon"
-        ], cwd=DATA)
+            "--vault", str(vault), "--interval", str(interval)
+        ], cwd=DATA, env={**os.environ, "LIVESYNC_DB_PATH": str(db_path)})
     if options.get("enable_tunnel", True):
         deadline = time.monotonic() + 30
         while time.monotonic() < deadline:

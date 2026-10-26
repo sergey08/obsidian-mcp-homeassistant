@@ -1,0 +1,27 @@
+name: Fresh-install checks
+on:
+  push:
+    branches: [feature/fresh-install-onboarding]
+  pull_request:
+    paths:
+      - 'obsidian_suite/**'
+      - '.github/workflows/onboarding-tests.yml'
+permissions:
+  contents: read
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run offline onboarding tests
+        run: python3 -m unittest discover -s obsidian_suite/tests -p 'test_*.py' -v
+      - name: Validate YAML syntax
+        run: |
+          python3 -m pip install 'PyYAML==6.0.2'
+          python3 - <<'PY'
+          import yaml
+          from pathlib import Path
+          for file in [Path('obsidian_suite/config.yaml'), *Path('obsidian_suite/translations').glob('*.yaml')]:
+              yaml.safe_load(file.read_text())
+              print('OK', file)
+          PY

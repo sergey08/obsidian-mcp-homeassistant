@@ -1,0 +1,60 @@
+name: Clean first-boot smoke test
+on:
+  push:
+    branches: [feature/fresh-install-onboarding]
+    paths:
+      - 'obsidian_suite/**'
+      - '.github/workflows/clean-first-boot.yml'
+  pull_request:
+    paths:
+      - 'obsidian_suite/**'
+      - '.github/workflows/clean-first-boot.yml'
+permissions:
+  contents: read
+jobs:
+  fresh-boot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and start add-on without legacy files
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build --platform linux/amd64 -f obsidian_suite/Dockerfile -t obsidian-fresh-ci obsidian_suite
+          mkdir -p /tmp/obsidian-fresh-ci
+          printf '%s\n' '{"enable_livesync":false,"enable_tunnel":false,"tunnel_id":"","livesync_interval":60}' > /tmp/obsidian-fresh-ci/options.json
+          docker run -d --name obsidian-fresh-ci \
+            -v /tmp/obsidian-fresh-ci:/data \
+            obsidian-fresh-ci
+          trap 'docker logs obsidian-fresh-ci || true; docker rm -f obsidian-fresh-ci || true' EXIT
+          for i in $(seq 1 30); do
+            if docker exec obsidian-fresh-ci /opt/venv/bin/python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8099/',timeout=2)" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          test "$(docker inspect -f '{{.State.Running}}' obsidian-fresh-ci)" = true
+          test -d /tmp/obsidian-fresh-ci/vault
+          test -d /tmp/obsidian-fresh-ci/mcp-trash
+          docker exec obsidian-fresh-ci /opt/venv/bin/python - <<'PY'
+          import urllib.request
+          response = urllib.request.urlopen('http://127.0.0.1:8099/', timeout=5)
+          assert response.status == 200
+          page = response.read().decode()
+          assert 'Import existing LiveSync CLI settings' in page
+          assert 'LiveSync settings' in page
+          PY
+          # Verify the local MCP HTTP endpoint is also started.
+          ready=0
+          for i in $(seq 1 30); do
+            if docker exec obsidian-fresh-ci /opt/venv/bin/python -c "import socket; s=socket.create_connection(('127.0.0.1',8765),2); s.close()" 2>/dev/null; then
+              ready=1
+              break
+            fi
+            sleep 1
+          done
+          test "$ready" -eq 1
+          # A forged POST without the CSRF token must be denied and must not create settings.
+          docker exec obsidian-fresh-ci /opt/venv/bin/python -c "import urllib.request,urllib.error; req=urllib.request.Request('http://127.0.0.1:8099/',data=b'settings=%7B%7D',method='POST',headers={'Content-Type':'application/x-www-form-urlencoded'}); result=urllib.request.urlopen(req,timeout=5)" 2>/tmp/csrf-error.txt && exit 1 || grep -q 'HTTP Error 403' /tmp/csrf-error.txt
+          test ! -f /tmp/obsidian-fresh-ci/settings/livesync-operativo.json
+          echo 'Clean first boot, owned storage and onboarding UI verified'
