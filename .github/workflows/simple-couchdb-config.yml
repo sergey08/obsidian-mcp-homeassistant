@@ -38,7 +38,13 @@ jobs:
               except ConfigurationError: pass
               else: raise AssertionError("Accepted missing encryption phrase")
               assert not (Path(directory)/"settings/livesync-operativo.json").exists()
-          print("First run, secret file permissions, migration safety and validation OK")
+          import ast
+          source=Path('obsidian_suite/supervisor.py').read_text()
+          assert 'folder.mkdir(parents=True, exist_ok=True)' in source
+          assert 'if folder.is_symlink()' in source
+          conf=Path('obsidian_suite/config.yaml').read_text()
+          assert 'enable_livesync: false' in conf and 'enable_tunnel: false' in conf
+          print("First run, safe directory creation, secret permissions and migration safety OK")
           PY
       - name: Build suite on amd64
-        run: docker build --platform linux/amd64 --build-arg BUILD_VERSION=0.2.1 -f obsidian_suite/Dockerfile obsidian_suite
+        run: docker build --platform linux/amd64 --build-arg BUILD_VERSION=0.2.2-dev1 -f obsidian_suite/Dockerfile obsidian_suite
