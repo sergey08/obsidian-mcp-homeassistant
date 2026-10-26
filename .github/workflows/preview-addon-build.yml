@@ -37,6 +37,27 @@ jobs:
           assert 'name=\'lang\' value=\'es\'' in es
           print('Bilingual onboarding smoke test passed')
           PY
+          python3 - <<'PY'
+          import sys,tempfile,json
+          from pathlib import Path
+          sys.path.insert(0,'obsidian_preview')
+          from livesync_setup import prepare_profile, save_profile, SetupError
+          raw=prepare_profile('http://127.0.0.1:5984','test_notes','user','secret','passphrase',True)
+          cfg=json.loads(raw)
+          assert cfg['encrypt'] is True and cfg['couchDB_DBNAME']=='test_notes'
+          with tempfile.TemporaryDirectory() as folder:
+              save_profile('http://127.0.0.1:5984','test_notes','user','secret','passphrase',True,folder)
+              assert (Path(folder)/'settings/livesync-operativo.json').exists()
+              try:
+                  save_profile('http://127.0.0.1:5984','test_notes','user','secret','passphrase',True,folder)
+                  raise AssertionError('Overwrite accepted')
+              except SetupError: pass
+          try:
+              prepare_profile('https://user:password@example.org','test_notes','u','p','',False)
+              raise AssertionError('URL credentials accepted')
+          except SetupError: pass
+          print('Guided CouchDB profile smoke tests passed')
+          PY
           docker build --platform linux/amd64 --build-arg BUILD_VERSION=0.3.0-dev2 -t obsidian-preview-ci -f obsidian_preview/Dockerfile obsidian_preview
       - name: Package experimental preview for manual installation
         run: |
