@@ -1,3 +1,9 @@
+> **Repository moved / Repositorio trasladado (2026-10-26)**
+>
+> The actively maintained Home Assistant app catalog is now **[sergey08/homeassistant-addons](https://github.com/sergey08/homeassistant-addons)**. Install and update Obsidian MCP there. This repository is retained only for historical reference; avoid adding both repositories to Home Assistant.
+>
+> El catálogo mantenido de aplicaciones para Home Assistant está ahora en **[sergey08/homeassistant-addons](https://github.com/sergey08/homeassistant-addons)**. Instala y actualiza Obsidian MCP desde allí. Este repositorio se conserva solo como referencia histórica; no añadas ambos repositorios a Home Assistant.
+
 ![Obsidian MCP for Home Assistant](docs/logo.png)
 
 # Obsidian MCP for Home Assistant
