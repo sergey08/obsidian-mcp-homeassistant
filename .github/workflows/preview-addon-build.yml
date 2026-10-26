@@ -44,6 +44,11 @@ jobs:
           assert 'value=\'obsidian\'' in persisted
           assert '&lt;x&gt;' in persisted and '<x>' not in persisted
           assert 'name=\'couch_encrypted\' value=\'1\' checked' not in persisted
+          # Never reflect a submitted password or encryption secret in HTML.
+          import inspect
+          source=inspect.getsource(onboarding.Handler.do_POST)
+          assert '("couch_url", "couch_db", "couch_user")' in source
+          assert '("couch_url", "couch_db", "couch_user", "couch_password", "couch_passphrase")' not in source
           print('Bilingual onboarding smoke test passed')
           PY
           python3 - <<'PY'
@@ -139,14 +144,14 @@ jobs:
               assert after['couchDB_PASSWORD']=='secret' and after['passphrase']=='phrase'
           print('Safe editing existing CouchDB settings passed')
           PY
-          docker build --platform linux/amd64 --build-arg BUILD_VERSION=0.3.0-dev9 -t obsidian-preview-ci -f obsidian_preview/Dockerfile obsidian_preview
+          docker build --platform linux/amd64 --build-arg BUILD_VERSION=0.3.0-dev10 -t obsidian-preview-ci -f obsidian_preview/Dockerfile obsidian_preview
       - name: Package experimental preview for manual installation
         run: |
           mkdir -p dist/obsidian_preview
           cp -a obsidian_preview/. dist/obsidian_preview/
-          cd dist && zip -qr ../obsidian-preview-0.3.0-dev9.zip obsidian_preview
+          cd dist && zip -qr ../obsidian-preview-0.3.0-dev10.zip obsidian_preview
       - uses: actions/upload-artifact@v4
         with:
-          name: obsidian-preview-0.3.0-dev9
-          path: obsidian-preview-0.3.0-dev9.zip
+          name: obsidian-preview-0.3.0-dev10
+          path: obsidian-preview-0.3.0-dev10.zip
           retention-days: 7
