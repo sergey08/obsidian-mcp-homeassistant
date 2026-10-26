@@ -16,8 +16,20 @@ options:
   enable_tunnel: true
   enable_livesync: true
   livesync_interval: 60
+  couchdb_url: ""
+  couchdb_database: "obsidian"
+  couchdb_username: ""
+  couchdb_password: ""
+  livesync_encryption: true
+  livesync_passphrase: ""
 schema:
   tunnel_id: str
   enable_tunnel: bool
   enable_livesync: bool
   livesync_interval: int(30,3600)
+  couchdb_url: str?
+  couchdb_database: str
+  couchdb_username: str?
+  couchdb_password: password?
+  livesync_encryption: bool
+  livesync_passphrase: password?
