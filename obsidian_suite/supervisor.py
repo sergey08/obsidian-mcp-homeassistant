@@ -8,6 +8,7 @@ import sys
 import time
 import socket
 from pathlib import Path
+from couchdb_config import ensure_settings, ConfigurationError
 
 BASE = Path("/app_configs/obsidian_bridge")
 DATA = Path("/data")
@@ -59,6 +60,9 @@ def main():
     start("mcp", ["/opt/venv/bin/python", "/opt/obsidian/server.py"])
     if options.get("enable_livesync", True):
         settings = BASE / "settings/livesync-operativo.json"
+        if not settings.is_file():
+            result = ensure_settings(options, BASE)
+            print("LiveSync profile " + result + " without exposing credentials", flush=True)
         required(settings)
         interval = int(options.get("livesync_interval", 60))
         if not 30 <= interval <= 3600:
