@@ -10,6 +10,7 @@ COPY supervisor.py /opt/obsidian/supervisor.py
 COPY preflight.py /opt/obsidian/preflight.py
 COPY onboarding.py /opt/obsidian/onboarding.py
 COPY settings_import.py /opt/obsidian/settings_import.py
+COPY livesync_setup.py /opt/obsidian/livesync_setup.py
 COPY couchdb_check.py /opt/obsidian/couchdb_check.py
 COPY tunnel_key.py /opt/obsidian/tunnel_key.py
 COPY tunnel_installer.py /opt/obsidian/tunnel_installer.py
