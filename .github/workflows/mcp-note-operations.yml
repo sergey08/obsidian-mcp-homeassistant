@@ -1,7 +1,7 @@
 name: MCP isolated note operations
 on:
   push:
-    branches: [feature/fresh-install-onboarding, release/0.2.2-rc1]
+    branches: [main]
     paths:
       - 'obsidian_suite/server.py'
       - 'obsidian_suite/tests/test_note_operations.py'
