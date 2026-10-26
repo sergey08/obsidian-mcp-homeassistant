@@ -121,7 +121,7 @@ def render_page(status, message="", lang="en"):
                          "autocomplete='off' maxlength='4096'>")
         form += ("<section><h2>"+tr["guided_title"]+"</h2>"
                  "<form method='post' action='./'>"+hidden+
-                 +controls+"<label><input type='checkbox' name='couch_encrypted' value='1' checked "
+                 controls+"<label><input type='checkbox' name='couch_encrypted' value='1' checked "
                  "style='width:auto'> "+tr["guided_encrypted"]+"</label>"
                  "<button type='submit' name='action' value='save_couch_profile'>"+tr["guided_button"]+"</button>"
                  "<button type='submit' name='action' value='test_couch_profile' style='margin-left:10px;background:#34354a;color:white'>"+tr["guided_test"]+"</button></form></section>")
