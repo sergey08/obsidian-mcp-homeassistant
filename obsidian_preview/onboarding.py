@@ -13,6 +13,7 @@ from settings_import import import_settings_json, SettingsImportError
 from couchdb_check import check_couchdb, check_couchdb_values, CouchCheckError
 from tunnel_key import store_runtime_key, TunnelKeyError
 from livesync_setup import save_profile, SetupError
+from service_config import load as load_services, save as save_services
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -35,7 +36,7 @@ I18N = {
   "tunnel_key_hint":"Store your private runtime key; validity is not verified here",
   "tunnel_id_hint":"Enter the ID in the add-on Configuration tab",
   "tunnel_enabled_hint":"Enable only after completing setup",
-  "guided_title":"Configure CouchDB manually","guided_url":"Server URL","guided_db":"Database name","guided_user":"Username","guided_password":"Password","guided_passphrase":"Shared encryption passphrase (optional for unencrypted setup)","guided_encrypted":"Enable encryption","guided_button":"Save CouchDB configuration","guided_test":"Test connection without saving","sync_title":"1. LiveSync configuration","sync_desc":"Paste trusted LiveSync CLI settings JSON, not an obsidian:// setup URI. Test only with a disposable database.",
+  "services_title":"3. Service controls","services_hint":"Changes apply automatically. Enable only after the corresponding setup is complete.","enable_sync":"Enable LiveSync","enable_tunnel":"Enable ChatGPT tunnel","interval_label":"Sync interval (seconds)","tunnel_id_label":"Tunnel ID","services_save":"Apply service settings","services_done":"Service configuration updated.","services_error":"Cannot enable a service before its files and credentials are configured.","guided_title":"Configure CouchDB manually","guided_url":"Server URL","guided_db":"Database name","guided_user":"Username","guided_password":"Password","guided_passphrase":"Shared encryption passphrase (optional for unencrypted setup)","guided_encrypted":"Enable encryption","guided_button":"Save CouchDB configuration","guided_test":"Test connection without saving","sync_title":"1. LiveSync configuration","sync_desc":"Paste trusted LiveSync CLI settings JSON, not an obsidian:// setup URI. Test only with a disposable database.",
   "sync_label":"LiveSync settings JSON","sync_button":"Import settings once",
   "check_title":"Check CouchDB connectivity","check_desc":"Read-only connectivity and authentication check. Does not start replication.",
   "check_button":"Check CouchDB","key_title":"2. ChatGPT tunnel key",
@@ -58,7 +59,7 @@ I18N = {
   "tunnel_key_hint":"Guarda tu clave privada; aquí no se comprueba su validez",
   "tunnel_id_hint":"Introduce el identificador en la pestaña Configuración",
   "tunnel_enabled_hint":"Actívalo solo después de completar la configuración",
-  "guided_title":"Configurar CouchDB manualmente","guided_url":"URL del servidor","guided_db":"Nombre de base de datos","guided_user":"Usuario","guided_password":"Contraseña","guided_passphrase":"Frase de cifrado compartida (opcional sin cifrado)","guided_encrypted":"Activar cifrado","guided_button":"Guardar configuración de CouchDB","guided_test":"Probar conexión sin guardar","sync_title":"1. Configuración de LiveSync","sync_desc":"Pega el JSON de LiveSync CLI de una fuente fiable, nunca un enlace obsidian://. Prueba solo con una base de datos desechable.",
+  "services_title":"3. Control de servicios","services_hint":"Los cambios se aplican automáticamente. Activa los servicios solamente cuando termines su configuración.","enable_sync":"Activar LiveSync","enable_tunnel":"Activar túnel de ChatGPT","interval_label":"Intervalo de sincronización (segundos)","tunnel_id_label":"Identificador del túnel","services_save":"Aplicar configuración de servicios","services_done":"Configuración de servicios actualizada.","services_error":"No se puede activar un servicio sin sus archivos y credenciales.","guided_title":"Configurar CouchDB manualmente","guided_url":"URL del servidor","guided_db":"Nombre de base de datos","guided_user":"Usuario","guided_password":"Contraseña","guided_passphrase":"Frase de cifrado compartida (opcional sin cifrado)","guided_encrypted":"Activar cifrado","guided_button":"Guardar configuración de CouchDB","guided_test":"Probar conexión sin guardar","sync_title":"1. Configuración de LiveSync","sync_desc":"Pega el JSON de LiveSync CLI de una fuente fiable, nunca un enlace obsidian://. Prueba solo con una base de datos desechable.",
   "sync_label":"JSON de configuración de LiveSync","sync_button":"Importar una sola vez",
   "check_title":"Comprobar conexión CouchDB","check_desc":"Comprueba conexión y autenticación en modo de solo lectura. No inicia sincronización.",
   "check_button":"Comprobar CouchDB","key_title":"2. Clave del túnel de ChatGPT",
@@ -72,10 +73,7 @@ I18N = {
 
 def collect_status(data=DATA, legacy=LEGACY):
     base = legacy if (legacy / "vault").is_dir() else data
-    try:
-        options = json.loads((data / "options.json").read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        options = {}
+    options = load_services(data)
     def exists(path):
         return path.is_file() and path.stat().st_size > 0
     tunnel = bool(options.get("enable_tunnel", False))
@@ -131,6 +129,17 @@ def render_page(status, message="", lang="en", entered=None):
                  "<form method='post' action='./'>"+hidden+
                  "<input type='hidden' name='action' value='check_couchdb'>"
                  "<button type='submit'>"+tr["check_button"]+"</button></form></section>")
+    svc = load_services(DATA)
+    form += ("<section><h2>"+tr["services_title"]+"</h2><p>"+tr["services_hint"]+"</p>"
+             "<form method='post' action='./'>"+hidden+
+             "<input type='hidden' name='action' value='save_services'>"
+             "<label for='sync_interval'>"+tr["interval_label"]+"</label>"
+             "<input type='number' id='sync_interval' name='sync_interval' min='30' max='3600' value='"+str(svc["livesync_interval"])+"' required>"
+             "<label for='tunnel_id'>"+tr["tunnel_id_label"]+"</label>"
+             "<input id='tunnel_id' name='tunnel_id' maxlength='256' value='"+html.escape(svc["tunnel_id"],quote=True)+"'>"
+             "<label><input style='width:auto' type='checkbox' name='enable_livesync' value='1' "+("checked" if svc["enable_livesync"] else "")+"> "+tr["enable_sync"]+"</label>"
+             "<label><input style='width:auto' type='checkbox' name='enable_tunnel' value='1' "+("checked" if svc["enable_tunnel"] else "")+"> "+tr["enable_tunnel"]+"</label>"
+             "<button type='submit'>"+tr["services_save"]+"</button></form></section>")
     if not status["tunnel_key"] and not status["tunnel_enabled"]:
         form += ("<section><h2>"+tr["key_title"]+"</h2><p>"+tr["key_desc"]+"</p>"
                  "<form method='post' action='./'>"+hidden+
@@ -203,7 +212,24 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(403)
             return
         status = collect_status()
-        if data.get("action") == ["save_tunnel_key"]:
+        if data.get("action") == ["save_services"]:
+            lang = data.get("lang", ["en"])[0]
+            tr = I18N.get(lang, I18N["en"])
+            enable_sync = data.get("enable_livesync") == ["1"]
+            enable_tunnel = data.get("enable_tunnel") == ["1"]
+            tunnel_id = data.get("tunnel_id", [""])[0].strip()
+            try:
+                interval = int(data.get("sync_interval", ["60"])[0])
+                if (enable_sync and not status["sync_settings"]) or (enable_tunnel and not (
+                        status["tunnel_binary"] and status["tunnel_key"] and tunnel_id)):
+                    message = tr["services_error"]
+                else:
+                    save_services({"enable_livesync":enable_sync, "enable_tunnel":enable_tunnel,
+                                   "tunnel_id":tunnel_id, "livesync_interval":interval}, DATA)
+                    message = tr["services_done"]
+            except (ValueError, OSError):
+                message = tr["services_error"]
+        elif data.get("action") == ["save_tunnel_key"]:
             base = LEGACY if (LEGACY / "vault").is_dir() else DATA
             if status["tunnel_enabled"] or status["tunnel_key"]:
                 message = "Import refused: tunnel is enabled or key already exists."
