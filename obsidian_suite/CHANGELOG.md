@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.2-rc1 — release candidate (not stable)
+
+- Preserves the `obsidian_suite` add-on identity, existing Home Assistant options and persistent vault paths.
+- Adds guided initial setup and read-only CouchDB diagnostics.
+- Adds isolated MCP Markdown CRUD and recoverable deletion regression tests.
+- Uses exclusive temporary files for atomic note replacement.
+- Adds CI checks for two-client encrypted LiveSync replication and compatibility with the 0.2.1 installation.
+- Production installation upgrade and post-upgrade bidirectional sync are still pending validation.
+- Experimental `obsidian_preview` must be excluded from the final stable release.
+
 ## 0.2.0 — 2026-10-25
 
 - Replaced Preview name with Obsidian MCP Suite.
