@@ -5,6 +5,7 @@ import os
 import signal
 import subprocess
 from preflight import main as check_prerequisites
+from service_config import load as load_services
 import sys
 import time
 import socket
@@ -43,7 +44,7 @@ def required(path, executable=False):
 
 
 def main():
-    options = json.loads((DATA / "options.json").read_text(encoding="utf-8"))
+    options = load_services(DATA)
     vault = BASE / "vault"
     trash = BASE / "mcp-trash"
     vault.mkdir(parents=True, exist_ok=True)
@@ -62,49 +63,54 @@ def main():
 
     start("onboarding", ["/opt/venv/bin/python", "/opt/obsidian/onboarding.py"])
     start("mcp", ["/opt/venv/bin/python", "/opt/obsidian/server.py"])
-    if options.get("enable_livesync", True):
-        settings = BASE / "settings/livesync-operativo.json"
-        required(settings)
-        interval = int(options.get("livesync_interval", 60))
-        if not 30 <= interval <= 3600:
-            raise RuntimeError("Invalid LiveSync interval")
-        # Docker-based LiveSync CLI uses LIVESYNC_DB_PATH to select its database.
-        # Keep its PouchDB database distinct from the Markdown vault.
-        db_path = BASE / "livesync-db"
-        db_path.mkdir(parents=True, exist_ok=True)
-        start("livesync", [
-            "/usr/local/bin/livesync-cli", "--settings", str(settings),
-            "--vault", str(vault), "--interval", str(interval)
-        ], cwd=DATA, env={**os.environ, "LIVESYNC_DB_PATH": str(db_path)})
-    if options.get("enable_tunnel", True):
-        deadline = time.monotonic() + 30
-        while time.monotonic() < deadline:
-            if CHILDREN["mcp"].poll() is not None:
-                raise RuntimeError("MCP server exited before becoming ready")
-            try:
-                with socket.create_connection(("127.0.0.1", 8765), timeout=1):
-                    print("MCP TCP endpoint is ready", flush=True)
-                    break
-            except OSError:
-                time.sleep(0.5)
-        else:
-            raise RuntimeError("MCP server did not become ready within 30 seconds")
-        tunnel_id = str(options.get("tunnel_id", "")).strip()
-        if not tunnel_id:
-            raise RuntimeError("Tunnel ID is required when tunnel is enabled")
-        binary = required(BASE / "tunnel/bin/tunnel-client", executable=True)
-        key = required(BASE / "tunnel/api-key")
-        run_dir = BASE / "tunnel/run"
-        run_dir.mkdir(parents=True, exist_ok=True)
-        start("tunnel", [
-            binary, "run",
-            "--control-plane.tunnel-id", tunnel_id,
-            "--control-plane.api-key", "file:" + key,
-            "--mcp.server-url", "channel=main,url=http://127.0.0.1:8765/mcp",
-            "--health.listen-addr", "127.0.0.1:0",
-            "--health.url-file", str(run_dir / "health.url")
-        ])
     while not STOPPING:
+        options = load_services(DATA)
+        if not options["enable_livesync"] and "livesync" in CHILDREN:
+            CHILDREN.pop("livesync").terminate()
+        if not options["enable_tunnel"] and "tunnel" in CHILDREN:
+            CHILDREN.pop("tunnel").terminate()
+        if options.get("enable_livesync", False) and "livesync" not in CHILDREN:
+            settings = BASE / "settings/livesync-operativo.json"
+            required(settings)
+            interval = int(options.get("livesync_interval", 60))
+            if not 30 <= interval <= 3600:
+                raise RuntimeError("Invalid LiveSync interval")
+            # Docker-based LiveSync CLI uses LIVESYNC_DB_PATH to select its database.
+            # Keep its PouchDB database distinct from the Markdown vault.
+            db_path = BASE / "livesync-db"
+            db_path.mkdir(parents=True, exist_ok=True)
+            start("livesync", [
+                "/usr/local/bin/livesync-cli", "--settings", str(settings),
+                "--vault", str(vault), "--interval", str(interval)
+            ], cwd=DATA, env={**os.environ, "LIVESYNC_DB_PATH": str(db_path)})
+        if options.get("enable_tunnel", False) and "tunnel" not in CHILDREN:
+            deadline = time.monotonic() + 30
+            while time.monotonic() < deadline:
+                if CHILDREN["mcp"].poll() is not None:
+                    raise RuntimeError("MCP server exited before becoming ready")
+                try:
+                    with socket.create_connection(("127.0.0.1", 8765), timeout=1):
+                        print("MCP TCP endpoint is ready", flush=True)
+                        break
+                except OSError:
+                    time.sleep(0.5)
+            else:
+                raise RuntimeError("MCP server did not become ready within 30 seconds")
+            tunnel_id = str(options.get("tunnel_id", "")).strip()
+            if not tunnel_id:
+                raise RuntimeError("Tunnel ID is required when tunnel is enabled")
+            binary = required(BASE / "tunnel/bin/tunnel-client", executable=True)
+            key = required(BASE / "tunnel/api-key")
+            run_dir = BASE / "tunnel/run"
+            run_dir.mkdir(parents=True, exist_ok=True)
+            start("tunnel", [
+                binary, "run",
+                "--control-plane.tunnel-id", tunnel_id,
+                "--control-plane.api-key", "file:" + key,
+                "--mcp.server-url", "channel=main,url=http://127.0.0.1:8765/mcp",
+                "--health.listen-addr", "127.0.0.1:0",
+                "--health.url-file", str(run_dir / "health.url")
+            ])
         for name, proc in CHILDREN.items():
             code = proc.poll()
             if code is not None:
