@@ -1,10 +1,9 @@
 name: MCP isolated note operations
 on:
   push:
-    branches: [feature/fresh-install-onboarding]
+    branches: [feature/fresh-install-onboarding, release/0.2.2-rc1]
     paths:
       - 'obsidian_suite/server.py'
-      - 'obsidian_preview/server.py'
       - 'obsidian_suite/tests/test_note_operations.py'
       - 'obsidian_suite/tests/test_upgrade_contract.py'
       - 'obsidian_suite/config.yaml'
@@ -13,7 +12,6 @@ on:
   pull_request:
     paths:
       - 'obsidian_suite/server.py'
-      - 'obsidian_preview/server.py'
       - 'obsidian_suite/tests/test_note_operations.py'
       - 'obsidian_suite/tests/test_upgrade_contract.py'
       - 'obsidian_suite/config.yaml'
@@ -31,6 +29,3 @@ jobs:
           set -euo pipefail
           python3 -m unittest discover -s obsidian_suite/tests -p test_note_operations.py -v
           python3 -m unittest discover -s obsidian_suite/tests -p test_upgrade_contract.py -v
-          mkdir -p obsidian_preview/tests
-          cp obsidian_suite/tests/test_note_operations.py obsidian_preview/tests/test_note_operations.py
-          python3 -m unittest discover -s obsidian_preview/tests -p test_note_operations.py -v
